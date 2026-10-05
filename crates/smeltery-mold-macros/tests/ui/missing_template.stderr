@@ -1,0 +1,5 @@
+error: ../../../../crates/smeltery-mold-macros/tests/ui/views/posts/nope.mold.html: template `posts/nope` not found
+ --> tests/ui/missing_template.rs:4:8
+  |
+4 | #[mold("posts/nope", crate = "smeltery_mold", dir = "../../../../crates/smeltery-mold-macros/tests/ui/views")]
+  |        ^^^^^^^^^^^^

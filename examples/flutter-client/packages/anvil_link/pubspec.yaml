@@ -1,0 +1,16 @@
+name: anvil_link
+description: A small Dart layer over dart_pusher_channels for a Smeltery app's Anvil socket (Pusher protocol 7) with Hallmark bearer tokens.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  dart_pusher_channels: ^1.3.1
+  http: ^1.6.0
+  web_socket_channel: ^3.0.3
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.31.0

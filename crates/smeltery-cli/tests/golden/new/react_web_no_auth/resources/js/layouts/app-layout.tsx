@@ -1,0 +1,53 @@
+import { Link, usePage } from '@inertiajs/react';
+import type { ReactNode } from 'react';
+
+import AppLogo from '@/components/app-logo';
+
+/** The layout of every page (set in app.tsx): the nav, flash messages, the page and the footer. */
+export default function AppLayout({ children }: { children: ReactNode }) {
+    const { props, flash } = usePage();
+    return (
+        <div className="flex min-h-screen flex-col">
+            <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-forge-900">
+                Skip to content
+            </a>
+            <header className="border-b border-ash-200/80 dark:border-forge-800/80">
+                <nav className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6" aria-label="Main">
+                    <Link href="/" className="flex items-center gap-2.5 font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-molten-500">
+                        <AppLogo />
+                        <span>{props.app.name}</span>
+                    </Link>
+                </nav>
+            </header>
+            {flash.status && (
+                <div className="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6">
+                    <p className="alert-success" role="status">
+                        {flash.status}
+                    </p>
+                </div>
+            )}
+            {flash.error && (
+                <div className="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6">
+                    <p className="alert-error" role="alert">
+                        {flash.error}
+                    </p>
+                </div>
+            )}
+            <div id="main" className="flex-1">
+                {children}
+            </div>
+            <footer className="border-t border-ash-200/80 dark:border-forge-800/80">
+                <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-sm text-stone-600 sm:px-6 dark:text-stone-400">
+                    <p>
+                        Built with{' '}
+                        <a href="https://github.com/smelteryworks/smeltery" className="link">
+                            Smeltery
+                        </a>
+                        , the Rust web framework.
+                    </p>
+                    <p className="font-mono text-xs">Rust · React · Inertia</p>
+                </div>
+            </footer>
+        </div>
+    );
+}

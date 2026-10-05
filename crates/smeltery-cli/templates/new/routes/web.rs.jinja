@@ -1,0 +1,48 @@
+//! Web routes: pages for the browser. They run with sessions and CSRF protection.
+{% if temper and alloy and anvil %}
+use crate::app::controllers::{dashboard, home, notifications, settings};
+{%- elif temper %}
+use crate::app::controllers::{dashboard, home, settings};
+{%- else %}
+use crate::app::controllers::home;
+{%- endif %}
+
+/// Registers the web routes.
+pub fn routes(r: &mut smeltery::routing::Router) {
+    r.get("/", home::index).name("home");
+{%- if temper %}
+
+    // Login, registration, password reset, e-mail verification, password confirmation and two-factor routes come
+    // from Temper (`app/providers/temper.rs`; `smeltery route:list` lists them).
+    r.get("/dashboard", dashboard::index)
+        .name("dashboard")
+        .middleware("auth")
+        .middleware("verified");
+    // `password.confirm`: the address decides where password reset links go, so the profile form (and Temper's
+    // `PUT /user/profile-information`) asks for the password again (once every `AUTH_PASSWORD_TIMEOUT` seconds).
+    r.get("/settings/profile", settings::profile)
+        .name("settings.profile")
+        .middleware("auth")
+        .middleware("verified")
+        .middleware("password.confirm");
+    r.get("/settings/password", settings::password)
+        .name("settings.password")
+        .middleware("auth")
+        .middleware("verified");
+    // `password.confirm`: the page shows the two-factor key while enrolling, so it asks for the password again
+    // (once every `AUTH_PASSWORD_TIMEOUT` seconds).
+    r.get("/settings/two-factor", settings::two_factor)
+        .name("settings.two-factor")
+        .middleware("auth")
+        .middleware("verified")
+        .middleware("password.confirm");
+{%- if alloy and anvil %}
+    // The dashboard's "Notify me" button: an event on the user's private channel (`app/controllers/notifications.rs`).
+    r.post("/notify-me", notifications::notify_me)
+        .name("notify-me")
+        .middleware("auth")
+        .middleware("throttle:10,1");
+{%- endif %}
+{%- endif %}
+    // smeltery:routes
+}

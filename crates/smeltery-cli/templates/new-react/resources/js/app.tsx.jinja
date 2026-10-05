@@ -1,0 +1,27 @@
+// React Fast Refresh in the dev server (no tag needed in the root template).
+import '@vitejs/plugin-react/preamble';
+import '../css/app.css';
+
+import { createInertiaApp } from '@inertiajs/react';
+
+import AppLayout from '@/layouts/app-layout';
+{%- if anvil %}
+import { startEcho } from '@/echo';
+{%- endif %}
+
+const appName = import.meta.env.VITE_APP_NAME || 'Smeltery';
+
+// The pages live in resources/js/pages/: a controller's `alloy::render("auth/login")` shows pages/auth/login.tsx
+// (@inertiajs/vite adds the resolver). Every page sits in the app layout.
+createInertiaApp({
+    title: (title) => (title ? `${title} · ${appName}` : appName),
+    layout: () => AppLayout,
+    progress: { color: '#ff4a1c' },
+{%- if anvil %}
+    // Connects Echo (resources/js/echo.ts) with the app's public Anvil key from the first page's shared props.
+    withApp: (app, { page }) => {
+        startEcho(page.props.app.anvil_key);
+        return app;
+    },
+{%- endif %}
+});

@@ -1,0 +1,89 @@
+//! {{ doc }}
+
+use smeltery::Result;
+use smeltery::db::migration::{Migration, Schema};
+{%- if search %}
+use smeltery::prospect::migration::{SearchIndex, Weight};
+{%- endif %}
+
+/// {{ struct_doc }}
+pub struct {{ struct_name }};
+
+impl Migration for {{ struct_name }} {
+    fn name(&self) -> &'static str {
+        "{{ name }}"
+    }
+{% if kind == "create" %}
+    async fn up(&self, schema: &Schema) -> Result<()> {
+        schema
+            .create("{{ table }}", |t| {
+                t.id();
+{%- for line in columns %}
+                {{ line }}
+{%- endfor %}
+                t.timestamps();
+            })
+{%- if search %}
+            .await?;
+        // The full-text search index (Prospect): the columns and weights of `impl Searchable`.
+        SearchIndex::on("{{ table }}")
+{%- for t in search %}
+            .text("{{ t.name }}", Weight::{{ t.weight }})
+{%- endfor %}
+            .create(schema)
+            .await
+    }
+
+    async fn down(&self, schema: &Schema) -> Result<()> {
+        SearchIndex::on("{{ table }}").drop(schema).await?;
+        schema.drop_if_exists("{{ table }}").await
+    }
+{%- else %}
+            .await
+    }
+
+    async fn down(&self, schema: &Schema) -> Result<()> {
+        schema.drop_if_exists("{{ table }}").await
+    }
+{%- endif %}
+{%- elif kind == "search" %}
+    async fn up(&self, schema: &Schema) -> Result<()> {
+        // The columns and weights of `impl Searchable`; the rows already in the table are indexed too.
+        SearchIndex::on("{{ table }}")
+{%- for t in search %}
+            .text("{{ t.name }}", Weight::{{ t.weight }})
+{%- endfor %}
+            .create(schema)
+            .await
+    }
+
+    async fn down(&self, schema: &Schema) -> Result<()> {
+        SearchIndex::on("{{ table }}").drop(schema).await
+    }
+{%- elif kind == "table" %}
+    async fn up(&self, schema: &Schema) -> Result<()> {
+        schema
+            .table("{{ table }}", |t| {
+                // The new columns of `{{ table }}`.
+                t.string("{{ column }}").nullable();
+            })
+            .await
+    }
+
+    async fn down(&self, schema: &Schema) -> Result<()> {
+        // Drops the column `up` adds; add a `DROP COLUMN` here for every column added there.
+        let sql = "ALTER TABLE {{ table }} DROP COLUMN {{ column }}";
+        schema.raw(sql).await
+    }
+{%- else %}
+    async fn up(&self, _schema: &Schema) -> Result<()> {
+        // Change the schema here, e.g. `_schema.create("table", |t| { … }).await`.
+        Ok(())
+    }
+
+    async fn down(&self, _schema: &Schema) -> Result<()> {
+        // Undo `up` here.
+        Ok(())
+    }
+{%- endif %}
+}

@@ -1,0 +1,10 @@
+@extends("layouts/app")
+@section("title", heading)
+@section("content")
+<h1>{{ heading }}</h1>
+@for(post in posts)
+<x-card><a href="{{ route("posts.show", { post: post.id }) }}">{{ post.title }}</a></x-card>
+@empty
+<p>No posts.</p>
+@endfor
+@endsection

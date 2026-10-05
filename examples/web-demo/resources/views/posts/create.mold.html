@@ -1,0 +1,27 @@
+@extends("layouts/app")
+
+@section("title", "New post")
+
+@section("content")
+<main>
+<h1>New post</h1>
+<form method="POST" action="/posts">
+@csrf
+<div>
+<label for="title">Title</label>
+<input id="title" name="title" type="text" required value="{{ old("title") }}">
+@error("title")
+<p>{{ message }}</p>
+@enderror
+</div>
+<div>
+<label for="body">Body</label>
+<textarea id="body" name="body" required>{{ old("body") }}</textarea>
+@error("body")
+<p>{{ message }}</p>
+@enderror
+</div>
+<p><button type="submit">Save</button> <a href="/posts">Cancel</a></p>
+</form>
+</main>
+@endsection

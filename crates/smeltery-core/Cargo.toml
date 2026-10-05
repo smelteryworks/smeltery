@@ -1,0 +1,85 @@
+[package]
+name = "smeltery-core"
+description = "The kernel of the Smeltery framework: routing, config, the app container, errors, the database layer (models, migrations, seeders, factories) and the console kernel."
+readme = "README.md"
+keywords = ["web", "framework", "fullstack", "smeltery"]
+categories = ["web-programming::http-server"]
+exclude = ["CLAUDE.md", "docs/", "/target", ".github/"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[features]
+default = []
+## SQLite support (sqlx's bundled SQLite).
+sqlite = ["sea-orm/sqlx-sqlite"]
+## PostgreSQL support.
+postgres = ["sea-orm/sqlx-postgres"]
+## MySQL / MariaDB support.
+mysql = ["sea-orm/sqlx-mysql"]
+## The `redis` cache store (redis crate, tokio, rustls with ring for `rediss://`).
+redis = ["dep:redis", "dep:rustls"]
+## The `memcached` cache store (memcache crate on blocking threads).
+memcached = ["dep:memcache"]
+
+[dependencies]
+# PubSub messages between processes are sealed with AES-256-GCM (already in the tree through cookie's private jar).
+aes-gcm = { workspace = true, features = ["aes", "alloc"] }
+argon2 = { workspace = true, features = ["alloc", "password-hash"] }
+axum = { workspace = true, features = ["tokio", "http1", "http2", "json", "form", "query", "matched-path", "original-uri"] }
+bytes.workspace = true
+base64.workspace = true
+cookie = { workspace = true, features = ["private", "key-expansion"] }
+form_urlencoded.workspace = true
+getrandom.workspace = true
+hmac.workspace = true
+futures-util.workspace = true
+http.workspace = true
+http-body.workspace = true
+http-body-util.workspace = true
+# The server's own accept loop (header-read and idle timeouts, a connection cap): already in the tree through axum.
+hyper = { workspace = true, features = ["http1", "http2", "server"] }
+hyper-util = { workspace = true, features = ["tokio", "server-auto", "service"] }
+multer.workspace = true
+memcache = { workspace = true, optional = true }
+moka = { workspace = true, features = ["future"] }
+redis = { workspace = true, optional = true, features = ["tokio-comp", "connection-manager", "tokio-rustls-comp"] }
+rustls = { workspace = true, optional = true, features = ["ring", "std", "tls12"] }
+sea-orm = { workspace = true, features = ["runtime-tokio-rustls", "macros", "with-chrono", "with-json", "with-uuid"] }
+serde.workspace = true
+serde_json.workspace = true
+serde_path_to_error.workspace = true
+sha2.workspace = true
+subtle.workspace = true
+serde_urlencoded.workspace = true
+smeltery-mold.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "signal", "time", "sync", "fs"] }
+tokio-util = { workspace = true, features = ["rt"] }
+tower = { workspace = true, features = ["util"] }
+tower-http = { workspace = true, features = ["fs", "trace", "request-id", "timeout", "limit", "util", "catch-panic", "compression-gzip", "compression-br"] }
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["fmt", "ansi", "std", "smallvec"] }
+
+# The effective user id (root-run commands must not follow folders another user controls), without unsafe code.
+[target.'cfg(unix)'.dependencies]
+rustix.workspace = true
+
+[dev-dependencies]
+# The facade, for the doc samples: they use `smeltery::prelude::*` and the derives expand to `::smeltery::…` paths. Path only, no version: Cargo leaves it out of the published package (D-140).
+smeltery = { path = "../smeltery", default-features = false }
+smeltery-mold-macros.workspace = true
+# An HTTP/2 (h2c) client for the connection tests: hyper's own, already in the tree.
+hyper = { workspace = true, features = ["client", "http2"] }
+tempfile.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

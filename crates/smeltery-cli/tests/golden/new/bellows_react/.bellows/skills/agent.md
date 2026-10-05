@@ -1,0 +1,14 @@
+# Skill: write a Watchfire agent or job
+
+1. A long-running agent: `smeltery make:agent PricePoller`. It creates `app/agents/price_poller.rs` (restart on
+   failure with backoff, a heartbeat timeout, a 30-second tick loop) and registers it in `app/agents/mod.rs` with
+   `w.agent(price_poller::PricePoller::default());`.
+2. Put the work inside `while ticker.tick().await { … }` (it stops when the agent is stopped). Use `ctx.http()` for
+   HTTP (timeouts, retries, rate limits), `ctx.db()?` for the database, `ctx.checkpoint(&state).await?` to keep state
+   across restarts, `ctx.log()` for logs. Return `Err` to fail the run; the restart policy decides what happens.
+3. A queued job: `smeltery make:job SendInvoice` creates `app/jobs/send_invoice.rs` and registers it with
+   `w.job::<…>()`. Queue it with `SendInvoice { … }.dispatch(&app).await?`; failed jobs are retried, then dead-lettered.
+4. Scheduled work goes in `register` too: `w.schedule().job(…).daily_at("03:00")`.
+5. Run it: `smeltery serve` (web and agents); watch it with
+   the dashboard at `/_watchfire` or `smeltery agents:list`, `smeltery agents:runs <name>`.
+6. Test agents with `smeltery::watchfire::testing::Harness` (paused time), jobs with `JobHarness`; run `smeltery test`.

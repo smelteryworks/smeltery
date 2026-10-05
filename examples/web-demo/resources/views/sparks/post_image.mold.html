@@ -1,0 +1,20 @@
+<div class="mt-6 rounded-md border border-gray-200 bg-white p-4">
+@if(image)
+<img src="/storage/{{ image }}" alt="The post's image" class="max-h-64 rounded-md">
+<button type="button" wire:click="remove" class="mt-2 text-sm text-red-700">Remove image</button>
+@else
+<p class="text-sm text-gray-600">No image yet.</p>
+@endif
+<div class="mt-4">
+<label for="photo" class="text-sm text-gray-700">Upload an image (PNG, JPEG, GIF or WebP, at most 2 MB)</label>
+<input id="photo" type="file" accept="image/png,image/jpeg,image/gif,image/webp" wire:model="photo">
+@error("photo")
+<p class="text-sm text-red-600">{{ message }}</p>
+@enderror
+@if(photo)
+<p class="text-sm text-gray-600">A file is ready: save it.</p>
+@endif
+<button type="button" wire:click="save" class="mt-2 rounded-md bg-gray-900 px-3 py-1.5 text-white">Save image</button>
+<span wire:loading class="text-sm text-gray-500">Uploading…</span>
+</div>
+</div>

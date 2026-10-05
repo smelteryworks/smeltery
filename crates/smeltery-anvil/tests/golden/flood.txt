@@ -1,0 +1,17 @@
+# 20 frames a second with a burst of 40: the 41st frame at once is dropped with one pusher:error 4301, and 41
+# refusals in a row close the socket with 4100 (pusher-js backs off).
+> {"event":"pusher:pong","data":{}} *40
+> {"event":"pusher:ping","data":{}}
+< {"event":"pusher:error","data":{"code":4301,"message":"too many messages; slow down"}}
+> {"event":"pusher:ping","data":{}} *39
+# Half a second later ten tokens are back.
++ 500ms
+> {"event":"pusher:ping","data":{}}
+< {"event":"pusher:pong","data":{}}
+> {"event":"pusher:pong","data":{}} *9
+> {"event":"pusher:ping","data":{}}
+< {"event":"pusher:error","data":{"code":4301,"message":"too many messages; slow down"}}
+> {"event":"pusher:ping","data":{}} *40
+x 4100
+# A closed session ignores everything.
+> {"event":"pusher:ping","data":{}}

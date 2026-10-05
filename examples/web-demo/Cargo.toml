@@ -1,0 +1,25 @@
+[package]
+name = "web-demo"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "web_demo"
+path = "bootstrap/app.rs"
+
+[[bin]]
+name = "web-demo"
+path = "bootstrap/main.rs"
+
+[dependencies]
+smeltery = { path = "../../crates/smeltery", default-features = false, features = ["sqlite"] }
+serde = { version = "1.0.229", features = ["derive"] }
+tokio = { version = "1.53.2", default-features = false, features = ["fs"] }
+tracing = { version = "0.1.44", default-features = false, features = ["std"] }
+
+# An empty workspace table keeps this app its own workspace, even inside another one.
+[workspace]
+
+[dev-dependencies]
+tempfile = "3.27.0"

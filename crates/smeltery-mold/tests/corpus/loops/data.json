@@ -1,0 +1,10 @@
+{
+  "posts": [
+    { "title": "First", "tags": ["a", "b"] },
+    { "title": "Second", "tags": [] }
+  ],
+  "nothing": [],
+  "settings": { "color": "red", "size": "L" },
+  "names": ["ann", "bob"],
+  "maybe_list": null
+}

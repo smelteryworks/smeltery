@@ -1,0 +1,123 @@
+# {{ title }}
+
+A [Smeltery](https://github.com/smelteryworks/smeltery) application.
+
+## Run it
+{% if web %}
+```sh
+smeltery serve
+```
+
+The app listens on <http://127.0.0.1:8000> (`SERVER_HOST` and `SERVER_PORT` in `.env`). `smeltery serve` rebuilds
+and restarts it when Rust code changes.{% if agents %} It also runs the agents, jobs and schedule in `app/agents/`; the
+Watchfire dashboard is at <http://127.0.0.1:8000/_watchfire>.{% endif %}
+{%- if alloy %}
+
+The pages are {{ kit_name }} components in `resources/js/pages/`, rendered in the browser by Inertia; the
+controllers in `app/controllers/` return them with `alloy::render("…")` and their props. Node.js and npm build
+them (Node.js 20.19+ or 22.12+): run `npm install` once, then `smeltery serve` also starts the Vite dev server
+(`node node_modules/vite/bin/vite.js`, on `127.0.0.1:5173`), which updates the page as files change. The
+stylesheet is `resources/css/app.css`, imported by `{{ entry }}`{% if tailwind %} and built by Tailwind through
+`@tailwindcss/vite`{% else %}: the forge theme, prebuilt for the kit's pages{% endif %}.
+
+Every `VITE_` value in `.env` is compiled into the JavaScript and readable by anyone; the app writes
+`VITE_APP_NAME` only.
+{%- else %}
+
+The pages are styled by `public/assets/css/app.css`, which Tailwind builds from `resources/css/app.css` and the
+classes in `resources/views/`. With Tailwind installed (`smeltery tailwind:install`), `smeltery serve` rebuilds it
+on every change.
+{%- endif %}
+{%- if alpine %}
+
+The layout loads Alpine.js {{ alpine_version }} from `public/assets/js/alpine.min.js`.
+{%- endif %}
+{%- if temper %}
+
+## Authentication
+
+Login, registration, password reset, e-mail verification, two-factor authentication and the settings pages
+(`/settings/profile`, `/settings/password`, `/settings/two-factor`) come from Temper: `app/providers/temper.rs`
+turns the features on and names their pages, `app/actions/temper/` holds the forms and what they do.
+`smeltery route:list` lists the routes.
+{%- elif not auth %}
+
+## Authentication
+
+This app was created without login pages (without the `temper` building block).
+`.temper(app::providers::temper::temper())` in `bootstrap/app.rs`, with the files `CLAUDE.md` lists, turns
+authentication on.
+{%- endif %}
+{%- if hallmark %}
+
+## API tokens
+
+Mobile apps, desktop apps and other clients get an API token from `POST /api/tokens` (`email`, `password`,
+`device_name`, and `code` for an account with two-factor authentication on), send it as
+`Authorization: Bearer smt_…` to the `auth:hallmark` routes of `routes/api.rs` (`GET /api/user`), and sign it out
+with `DELETE /api/tokens/current`. Hallmark stores only each token's hash; `HALLMARK_*` in `.env` change its
+settings.
+{%- endif %}
+{%- if search %}
+
+## Search
+
+`smeltery make:model Post title:string body:text --searchable --all` makes a model searchable: its list page at
+`/posts` searches (`?q=`), ranked and highlighted. The database keeps the full-text index current itself
+(`PROSPECT_DRIVER=database`); `app/providers/search.rs` lists the searchable models.
+{%- endif %}
+{%- if anvil %}
+
+## Broadcasting
+
+`smeltery serve` also serves WebSockets at `ws://127.0.0.1:8000/app/<key>` (the key is derived from `APP_KEY`;
+`ANVIL_APP_KEY` in `.env` sets it). Clients that speak the Pusher protocol (`pusher-js`, `laravel-echo`, the Pusher
+libraries for mobile platforms) connect with this host and key, subscribe to the channels of
+`routes/channels.rs`{% if auth %} (private ones through `POST /broadcasting/auth`){% endif %}, and receive the events
+in `app/events/`.
+{%- endif %}
+{%- else %}
+```sh
+smeltery work
+```
+
+`smeltery work` runs the agents, the job queue workers and the schedule registered in `app/agents/mod.rs`, until
+Ctrl-C. `smeltery serve` does the same and also rebuilds and restarts the app when Rust code changes.
+
+While it runs, these commands talk to it through `WATCHFIRE_API_ADDR` (`127.0.0.1:8001` in `.env`):
+
+| Command | What it does |
+|---|---|
+| `smeltery agents:list` | Lists the agents with their state. |
+| `smeltery agents:start\|stop\|pause\|resume\|restart <name>` | Controls an agent. |
+| `smeltery agents:logs <name>` | Shows an agent's recent log lines. |
+
+`smeltery agents:runs <name>` (recent runs), `smeltery schedule:list` and `smeltery schedule:run` (run what is due
+now, once) work without a running worker.
+{%- endif %}
+
+## Test it
+
+```sh
+smeltery test
+```
+
+## Build for production
+
+```sh
+smeltery build
+```
+
+The binary lands in `target/release/{{ name }}`.{% if alloy %} Before it, `smeltery build` runs `npm run build`
+(after `npm ci`, or `npm install` without a `package-lock.json`, when `node_modules/` is missing), which writes the
+JavaScript, the CSS and `manifest.json` into `public/build/`. Ship the `public/` folder next to the binary; the
+server needs no Node.js.{% elif web %} `smeltery build` also builds a minified
+`public/assets/css/app.css` with Tailwind when it is installed. Ship the `public/` folder next to the binary.{% endif %}
+
+On a server the binary runs the setup commands itself, without the `smeltery` CLI:
+{%- if web %}
+`./{{ name }} key:generate`, `./{{ name }} storage:link` and `./{{ name }} migrate --force`
+{%- else %}
+`./{{ name }} key:generate` and `./{{ name }} migrate --force`
+{%- endif %} (`--force` is required with
+`APP_ENV=production`).

@@ -1,0 +1,43 @@
+@extends("layouts/app")
+
+@section("title", "Register")
+
+@section("content")
+  <main class="mx-auto max-w-md px-4 py-12 sm:py-16">
+    <h1 class="text-center text-2xl font-bold tracking-tight">Create an account</h1>
+    <p class="mt-2 text-center text-sm text-stone-600 dark:text-stone-400">One account for everything in this app.</p>
+    <form method="POST" action="/register" class="panel mt-8 space-y-5">
+      @csrf
+      <div>
+        <label for="name" class="form-label">Name</label>
+        <input id="name" name="name" type="text" value="{{ old("name") }}" required autofocus autocomplete="name" class="form-input" @error("name") aria-invalid="true" aria-describedby="name-error" @enderror>
+        @error("name")
+          <p id="name-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <div>
+        <label for="email" class="form-label">Email</label>
+        <input id="email" name="email" type="email" value="{{ old("email") }}" required autocomplete="username" class="form-input" @error("email") aria-invalid="true" aria-describedby="email-error" @enderror>
+        @error("email")
+          <p id="email-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <div>
+        <label for="password" class="form-label">Password</label>
+        <input id="password" name="password" type="password" required autocomplete="new-password" class="form-input" @error("password") aria-invalid="true" aria-describedby="password-error" @enderror>
+        @error("password")
+          <p id="password-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <div>
+        <label for="password_confirmation" class="form-label">Confirm password</label>
+        <input id="password_confirmation" name="password_confirmation" type="password" required autocomplete="new-password" class="form-input" @error("password_confirmation") aria-invalid="true" aria-describedby="password_confirmation-error" @enderror>
+        @error("password_confirmation")
+          <p id="password_confirmation-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <button type="submit" class="btn-primary w-full">Register</button>
+      <p class="text-center text-sm text-stone-600 dark:text-stone-400">Already registered? <a href="/login" class="link">Log in</a></p>
+    </form>
+  </main>
+@endsection

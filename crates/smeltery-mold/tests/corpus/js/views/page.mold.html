@@ -1,0 +1,7 @@
+{{-- js: the `json` filter (values in JavaScript contexts) and the `url` filter (links) --}}
+<div x-data="{ n: {{ name | json }}, post: {{ post | json }} }" x-text="n"></div>
+<button wire:click="remove({{ id | json }}, {{ name | json }})" @click='pick({{ name | json }})'>x</button>
+<script>var a = {!! name | json !!}, b = {!! post | json !!}, c = {!! tags | json !!};</script>
+<p>{{ nothing | json }} {{ count | json }} {{ ratio | json }} {{ flag | json }} {{ line | json }} {{ name | upper | json }} {{ (count + 1) | json }}</p>
+<a href="{{ evil_url | url }}">1</a><a href="{{ hidden_url | url }}">2</a><a href="{{ data_url | url }}">3</a>
+<a href="{{ good_url | url }}">4</a><a href="{{ rel_url | url }}">5</a><a href="{{ mail_url | url }}">6</a><a href="{{ colon_path | url }}">7</a>

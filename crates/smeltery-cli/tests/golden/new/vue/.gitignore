@@ -1,0 +1,6 @@
+/target
+.env
+/database/*.sqlite*
+/public/storage
+/node_modules
+/public/build

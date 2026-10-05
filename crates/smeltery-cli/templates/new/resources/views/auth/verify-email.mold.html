@@ -1,0 +1,22 @@
+@extends("layouts/app")
+
+@section("title", "Verify your e-mail address")
+
+@section("content")
+  <main class="mx-auto max-w-md px-4 py-12 sm:py-16">
+    <h1 class="text-center text-2xl font-bold tracking-tight">Verify your e-mail address</h1>
+    <p class="mt-2 text-center text-sm text-stone-600 dark:text-stone-400">Thanks for signing up. Open the link in the mail we sent you to verify your address, in this browser while you are logged in. A link opened while logged out leads to the login page: log in, then open the link again.</p>
+    <form method="POST" action="/email/verification-notification" class="panel mt-8 space-y-5">
+      @csrf
+      <p class="text-sm text-stone-700 dark:text-stone-300">No mail? Check the spam folder, or send the link again.</p>
+      @error("email")
+        <p id="email-error" class="form-error">{{ message }}</p>
+      @enderror
+      <button type="submit" class="btn-primary w-full" @error("email") aria-describedby="email-error" @enderror>Send the link again</button>
+    </form>
+    <form method="POST" action="/logout" class="mt-6 text-center">
+      @csrf
+      <button type="submit" class="link text-sm">Log out</button>
+    </form>
+  </main>
+@endsection

@@ -1,0 +1,582 @@
+//! HTTP tests: requests against the app in memory, no server needed. Every `TestApp` starts with a fresh, migrated
+//! database and keeps its cookies between requests, so sessions and logins carry over.
+
+use smeltery::db::Record as _;
+use smeltery::db::seed::Seeder;
+use smeltery::mail::{Mailer, ResetPassword, VerifyEmail};
+use smeltery::sparks::testing::TestSpark;
+use smeltery::temper::testing::{
+    confirm_password, enable_two_factor, fake_clock, log_in, two_factor_code,
+};
+use smeltery::testing::TestApp;
+
+use my_app::app::models::User;
+use my_app::database::seeders::database_seeder::DatabaseSeeder;
+
+/// A fresh app with the demo user (`demo@example.com` / `password`).
+fn app_with_demo_user() -> TestApp {
+    let app = TestApp::new(my_app::build);
+    let db = app.db();
+    app.block_on(DatabaseSeeder.run(&db))
+        .expect("seeding the demo user");
+    app
+}
+
+#[test]
+fn home_page_works() {
+    let app = TestApp::new(my_app::build);
+    let res = app.get("/");
+    assert_eq!(res.status(), 200);
+    assert!(res.text().contains("My App"));
+}
+
+#[test]
+fn the_counter_spark_counts() {
+    let app = TestApp::new(my_app::build);
+    let html = app.get("/").text();
+    assert!(html.contains("wire:name=\"counter\""));
+    let mut counter =
+        TestSpark::from_html(&html, "counter").expect("the home page shows the counter");
+    assert_eq!(counter.data()["count"], 0);
+    assert_eq!(
+        counter
+            .call("increment", smeltery::json!([]))
+            .send(&app)
+            .status(),
+        200
+    );
+    assert_eq!(counter.data()["count"], 1);
+    counter.set("step", 5);
+    assert_eq!(
+        counter
+            .call("increment", smeltery::json!([]))
+            .send(&app)
+            .status(),
+        200
+    );
+    assert_eq!(counter.data()["count"], 6);
+}
+
+#[test]
+fn health_check_works() {
+    let app = TestApp::new(my_app::build);
+    let res = app.get("/api/health");
+    assert_eq!(res.status(), 200);
+    assert!(res.text().contains("ok"));
+}
+
+#[test]
+fn the_layout_loads_alpine_after_sparks() {
+    let html = TestApp::new(my_app::build).get("/").text();
+    let sparks = html
+        .find("/_sparks/sparks.js")
+        .expect("the layout loads sparks.js");
+    let alpine = html
+        .find("/assets/js/alpine.min.js?v=3.17.4")
+        .expect("the layout loads Alpine.js");
+    assert!(sparks < alpine, "Alpine.js loads after sparks.js");
+}
+
+#[test]
+fn guests_are_sent_from_the_dashboard_to_the_login_page() {
+    let app = TestApp::new(my_app::build);
+    let res = app.get("/dashboard");
+    assert_eq!(res.status(), 303);
+    assert_eq!(res.header("location"), Some("/login"));
+}
+
+#[test]
+fn new_users_can_register_and_are_logged_in() {
+    let app = TestApp::new(my_app::build);
+    let res = app.post_form(
+        "/register",
+        &[
+            ("name", "Ada Lovelace"),
+            ("email", "ada@example.com"),
+            ("password", "analytical-engine"),
+            ("password_confirmation", "analytical-engine"),
+        ],
+    );
+    assert_eq!(res.status(), 303);
+    assert_eq!(res.header("location"), Some("/dashboard"));
+    // Logged in: `guest` sends signed-in users away from the login page (with or without email verification).
+    assert_eq!(app.get("/login").status(), 303);
+}
+
+#[test]
+fn the_demo_user_can_log_in() {
+    let app = app_with_demo_user();
+    let res = app.post_form(
+        "/login",
+        &[("email", "demo@example.com"), ("password", "password")],
+    );
+    assert_eq!(res.status(), 303);
+    assert_eq!(res.header("location"), Some("/dashboard"));
+    assert!(app.get("/dashboard").text().contains("Demo User"));
+}
+
+#[test]
+fn a_wrong_password_shows_an_error() {
+    let app = app_with_demo_user();
+    let res = app.post_form(
+        "/login",
+        &[
+            ("email", "demo@example.com"),
+            ("password", "wrong-password"),
+        ],
+    );
+    assert_eq!(res.status(), 303);
+    assert_eq!(res.header("location"), Some("/login"));
+    assert!(
+        app.get("/login")
+            .text()
+            .contains("These credentials do not match our records.")
+    );
+    assert_eq!(app.get("/dashboard").status(), 303);
+}
+
+#[test]
+fn forgot_password_mails_a_reset_link() {
+    let app = app_with_demo_user();
+    let res = app.post_form("/forgot-password", &[("email", "demo@example.com")]);
+    assert_eq!(res.status(), 303);
+    // Tests run with APP_ENV=testing: mail goes to a fake mailbox instead of the log or SMTP.
+    let mailbox = Mailer::of(app.app())
+        .expect("mail is installed")
+        .mailbox()
+        .expect("the fake mailbox");
+    mailbox.assert_sent::<ResetPassword>(|mail, email| {
+        mail.email == "demo@example.com" && email.has_recipient("demo@example.com")
+    });
+}
+
+#[test]
+fn a_mailed_reset_link_sets_a_new_password() {
+    let app = app_with_demo_user();
+    app.post_form("/forgot-password", &[("email", "demo@example.com")]);
+    let mailbox = Mailer::of(app.app())
+        .expect("mail is installed")
+        .mailbox()
+        .expect("the fake mailbox");
+    let (mail, _) = mailbox
+        .sent_of::<ResetPassword>()
+        .pop()
+        .expect("the reset mail");
+    let link = mail
+        .url
+        .find("/reset-password/")
+        .and_then(|at| mail.url.get(at..))
+        .expect("the link")
+        .to_owned();
+    assert_eq!(app.get(&link).status(), 200);
+    let action = link.split('?').next().expect("the path");
+    let res = app.post_form(
+        action,
+        &[
+            ("email", "demo@example.com"),
+            ("password", "a-new-password"),
+            ("password_confirmation", "a-new-password"),
+        ],
+    );
+    assert_eq!(res.header("location"), Some("/login"));
+    let res = app.post_form(
+        "/login",
+        &[
+            ("email", "demo@example.com"),
+            ("password", "a-new-password"),
+        ],
+    );
+    assert_eq!(res.header("location"), Some("/dashboard"));
+}
+
+#[test]
+fn password_reset_requests_are_throttled() {
+    let app = TestApp::new(my_app::build);
+    // `throttle:6,1` allows 6 a minute per client and route; 13 requests fill one minute even across its end.
+    let refused = (0..13).any(|_| {
+        assert_eq!(
+            app.post_form("/forgot-password", &[("email", "nobody@example.com")])
+                .status(),
+            303
+        );
+        app.get("/forgot-password")
+            .text()
+            .contains("Too many attempts")
+    });
+    assert!(refused, "the forgot-password form is throttled");
+}
+
+#[test]
+fn email_addresses_are_trimmed_and_lower_cased() {
+    let app = TestApp::new(my_app::build);
+    let register = |email: &str| {
+        app.post_form(
+            "/register",
+            &[
+                ("name", "Ada Lovelace"),
+                ("email", email),
+                ("password", "analytical-engine"),
+                ("password_confirmation", "analytical-engine"),
+            ],
+        )
+    };
+    assert_eq!(
+        register(" Ada@Example.COM ").header("location"),
+        Some("/dashboard")
+    );
+    assert_eq!(app.post_form("/logout", &[]).status(), 303);
+    // The same address in other letters is the same account: it logs in, and it cannot register again.
+    let res = app.post_form(
+        "/login",
+        &[
+            ("email", "ADA@example.com"),
+            ("password", "analytical-engine"),
+        ],
+    );
+    assert_eq!(res.header("location"), Some("/dashboard"));
+    assert_eq!(app.post_form("/logout", &[]).status(), 303);
+    register("ada@EXAMPLE.com");
+    assert!(
+        app.get("/register")
+            .text()
+            .contains("The email has already been taken.")
+    );
+}
+
+#[test]
+fn users_can_log_out() {
+    let app = app_with_demo_user();
+    app.post_form(
+        "/login",
+        &[("email", "demo@example.com"), ("password", "password")],
+    );
+    assert_eq!(app.get("/dashboard").status(), 200);
+    let res = app.post_form("/logout", &[]);
+    assert_eq!(res.status(), 303);
+    assert_eq!(app.get("/dashboard").status(), 303);
+}
+
+/// Registers Ada and returns the app's fake mailbox.
+fn register_ada(app: &TestApp) -> smeltery::mail::Mailbox {
+    let res = app.post_form(
+        "/register",
+        &[
+            ("name", "Ada Lovelace"),
+            ("email", "ada@example.com"),
+            ("password", "analytical-engine"),
+            ("password_confirmation", "analytical-engine"),
+        ],
+    );
+    assert_eq!(res.status(), 303);
+    Mailer::of(app.app())
+        .expect("mail is installed")
+        .mailbox()
+        .expect("the fake mailbox")
+}
+
+/// `build` with the line that `bootstrap/app.rs` has commented out: email verification on.
+fn require_verification(app: smeltery::AppBuilder) -> smeltery::AppBuilder {
+    my_app::build(app).verify_email::<User>()
+}
+
+#[test]
+fn email_verification_follows_bootstrap() {
+    let app = TestApp::new(my_app::build);
+    let mailbox = register_ada(&app);
+    let dashboard = app.get("/dashboard");
+    if mailbox.sent_of::<VerifyEmail>().is_empty() {
+        // Off (`.verify_email` is commented out in `bootstrap/app.rs`): `verified` lets everyone through.
+        assert_eq!(dashboard.status(), 200);
+        assert!(dashboard.text().contains("Ada Lovelace"));
+        let res = app.get("/email/verify");
+        assert_eq!(res.status(), 303);
+        assert_eq!(res.header("location"), Some("/dashboard"));
+    } else {
+        // On: the dashboard waits for the link in the mail.
+        assert_eq!(dashboard.status(), 303);
+        assert_eq!(dashboard.header("location"), Some("/email/verify"));
+    }
+}
+
+#[test]
+fn with_verification_on_the_mailed_link_opens_the_dashboard() {
+    let app = TestApp::new(require_verification);
+    let mailbox = register_ada(&app);
+    let res = app.get("/dashboard");
+    assert_eq!(res.status(), 303);
+    assert_eq!(res.header("location"), Some("/email/verify"));
+    let notice = app.get("/email/verify").text();
+    assert!(notice.contains("Verify your e-mail address"));
+    let (mail, email) = mailbox
+        .sent_of::<VerifyEmail>()
+        .pop()
+        .expect("the verification mail");
+    assert!(email.has_recipient("ada@example.com"));
+    let path = mail
+        .url
+        .find("/email/verify/")
+        .and_then(|at| mail.url.get(at..))
+        .expect("the link");
+    let res = app.get(path);
+    assert_eq!(res.status(), 303);
+    assert_eq!(res.header("location"), Some("/dashboard"));
+    assert_eq!(app.get("/dashboard").status(), 200);
+}
+
+#[test]
+fn with_verification_on_the_link_can_be_sent_again() {
+    let app = TestApp::new(require_verification);
+    let mailbox = register_ada(&app);
+    let res = app.post_form("/email/verification-notification", &[]);
+    assert_eq!(res.status(), 303);
+    let notice = app.get("/email/verify").text();
+    assert!(notice.contains("A new verification link has been sent"));
+    assert_eq!(mailbox.sent_of::<VerifyEmail>().len(), 2);
+}
+#[test]
+fn a_guest_lands_on_the_page_they_asked_for_after_logging_in() {
+    let app = app_with_demo_user();
+    let res = app.get("/dashboard");
+    assert_eq!(res.header("location"), Some("/login"));
+    let res = app.post_form(
+        "/login",
+        &[("email", "demo@example.com"), ("password", "password")],
+    );
+    assert_eq!(res.status(), 303);
+    assert_eq!(res.header("location"), Some("/dashboard"));
+}
+
+#[test]
+fn a_verification_link_opened_while_logged_out_works_after_logging_in() {
+    let app = TestApp::new(require_verification);
+    let mailbox = register_ada(&app);
+    let (mail, _) = mailbox
+        .sent_of::<VerifyEmail>()
+        .pop()
+        .expect("the verification mail");
+    let link = mail
+        .url
+        .find("/email/verify/")
+        .and_then(|at| mail.url.get(at..))
+        .expect("the link")
+        .to_owned();
+    assert_eq!(app.post_form("/logout", &[]).status(), 303);
+    // Logged out, the link leads to the login page; after logging in, back to the link.
+    assert_eq!(app.get(&link).header("location"), Some("/login"));
+    let res = app.post_form(
+        "/login",
+        &[
+            ("email", "ada@example.com"),
+            ("password", "analytical-engine"),
+        ],
+    );
+    assert_eq!(res.header("location"), Some(link.as_str()));
+    assert_eq!(app.get(&link).header("location"), Some("/dashboard"));
+    assert_eq!(app.get("/dashboard").status(), 200);
+}
+
+/// A fixed time for two-factor codes (`fake_clock`): the next 30-second step starts 20 seconds later.
+const T: i64 = 1_700_000_010;
+
+/// The demo user's id.
+fn demo_user_id(app: &TestApp) -> i64 {
+    let db = app.db();
+    app.block_on(User::all(&db))
+        .expect("the users")
+        .into_iter()
+        .find(|u| u.email == "demo@example.com")
+        .expect("the demo user")
+        .id
+}
+
+#[test]
+fn users_can_update_their_profile() {
+    let app = app_with_demo_user();
+    log_in(&app, "demo@example.com", "password");
+    // The address decides where password reset links go: the page and the form ask for the password first.
+    let res = app.get("/settings/profile");
+    assert_eq!(res.header("location"), Some("/user/confirm-password"));
+    let res = app.post_form(
+        "/user/profile-information",
+        &[
+            ("_method", "PUT"),
+            ("name", "Mallory"),
+            ("email", "mallory@example.com"),
+        ],
+    );
+    assert_eq!(res.header("location"), Some("/user/confirm-password"));
+    let res = confirm_password(&app, "password");
+    assert_eq!(res.header("location"), Some("/settings/profile"));
+    let page = app.get("/settings/profile");
+    assert_eq!(page.status(), 200);
+    assert_eq!(page.header("cache-control"), Some("no-store"));
+    assert!(page.text().contains("demo@example.com"));
+    // HTML forms send PUT with a `_method` field.
+    let res = app.post_form(
+        "/user/profile-information",
+        &[
+            ("_method", "PUT"),
+            ("name", "Ada Lovelace"),
+            ("email", " Ada@Example.com "),
+        ],
+    );
+    assert_eq!(res.status(), 303);
+    let page = app.get("/settings/profile").text();
+    assert!(page.contains("Your profile has been updated."));
+    assert!(page.contains("ada@example.com"));
+    assert!(app.get("/dashboard").text().contains("Ada Lovelace"));
+}
+
+#[test]
+fn users_can_change_their_password_and_stay_signed_in() {
+    let app = app_with_demo_user();
+    log_in(&app, "demo@example.com", "password");
+    let change = |current: &str| {
+        app.post_form(
+            "/user/password",
+            &[
+                ("_method", "PUT"),
+                ("current_password", current),
+                ("password", "a-new-password"),
+                ("password_confirmation", "a-new-password"),
+            ],
+        )
+    };
+    assert_eq!(change("wrong-password").status(), 303);
+    assert!(
+        app.get("/settings/password")
+            .text()
+            .contains("The provided password does not match your current password.")
+    );
+    assert_eq!(change("password").status(), 303);
+    assert_eq!(
+        app.get("/dashboard").status(),
+        200,
+        "this device stays signed in"
+    );
+    assert_eq!(app.post_form("/logout", &[]).status(), 303);
+    assert_eq!(
+        log_in(&app, "demo@example.com", "password").header("location"),
+        Some("/login")
+    );
+    assert_eq!(
+        log_in(&app, "demo@example.com", "a-new-password").header("location"),
+        Some("/dashboard")
+    );
+}
+
+#[test]
+fn two_factor_can_be_enabled_confirmed_and_used_to_log_in() {
+    let app = app_with_demo_user();
+    fake_clock(app.app(), T);
+    let id = demo_user_id(&app);
+    log_in(&app, "demo@example.com", "password");
+    assert_eq!(confirm_password(&app, "password").status(), 303);
+    assert_eq!(
+        app.post_form("/user/two-factor-authentication", &[])
+            .status(),
+        303
+    );
+    let page = app.get("/settings/two-factor");
+    assert_eq!(page.status(), 200);
+    assert_eq!(page.header("cache-control"), Some("no-store"));
+    let html = page.text();
+    assert!(
+        html.contains("src=\"data:image/svg+xml;base64,"),
+        "the QR code"
+    );
+    assert!(
+        html.contains("this page shows them only now"),
+        "the recovery codes"
+    );
+    let code = two_factor_code::<User>(&app, id);
+    let res = app.post_form(
+        "/user/confirmed-two-factor-authentication",
+        &[("code", code.as_str())],
+    );
+    assert_eq!(res.status(), 303);
+    assert!(app.get("/settings/two-factor").text().contains("On."));
+    assert_eq!(app.post_form("/logout", &[]).status(), 303);
+    // The password alone does not sign in: the challenge asks for a code.
+    let res = log_in(&app, "demo@example.com", "password");
+    assert_eq!(res.header("location"), Some("/two-factor-challenge"));
+    assert_eq!(app.get("/dashboard").status(), 303);
+    assert!(
+        app.get("/two-factor-challenge")
+            .text()
+            .contains("authenticator app")
+    );
+    // The code that confirmed the enrolment is used up: the app shows the next one 30 seconds later.
+    fake_clock(app.app(), T + 30);
+    let code = two_factor_code::<User>(&app, id);
+    let res = app.post_form("/two-factor-challenge", &[("code", code.as_str())]);
+    assert_eq!(res.header("location"), Some("/dashboard"));
+    assert_eq!(app.get("/dashboard").status(), 200);
+}
+
+#[test]
+fn a_recovery_code_logs_in_once() {
+    let app = app_with_demo_user();
+    fake_clock(app.app(), T);
+    let codes = enable_two_factor::<User>(&app, demo_user_id(&app));
+    let code = codes.first().expect("a recovery code").clone();
+    log_in(&app, "demo@example.com", "password");
+    let res = app.post_form("/two-factor-challenge", &[("recovery_code", code.as_str())]);
+    assert_eq!(res.header("location"), Some("/dashboard"));
+    assert_eq!(app.post_form("/logout", &[]).status(), 303);
+    log_in(&app, "demo@example.com", "password");
+    let res = app.post_form("/two-factor-challenge", &[("recovery_code", code.as_str())]);
+    assert_eq!(res.header("location"), Some("/two-factor-challenge"));
+    assert!(
+        app.get("/two-factor-challenge")
+            .text()
+            .contains("The provided two factor authentication code was invalid.")
+    );
+    assert_eq!(app.get("/dashboard").status(), 303);
+}
+
+#[test]
+fn settings_need_a_recent_password_confirmation() {
+    let app = app_with_demo_user();
+    log_in(&app, "demo@example.com", "password");
+    assert_eq!(app.get("/settings/password").status(), 200);
+    assert_eq!(
+        app.get("/settings/profile").header("location"),
+        Some("/user/confirm-password")
+    );
+    let res = app.get("/settings/two-factor");
+    assert_eq!(res.status(), 303);
+    assert_eq!(res.header("location"), Some("/user/confirm-password"));
+    assert!(
+        app.get("/user/confirm-password")
+            .text()
+            .contains("Confirm your password")
+    );
+    confirm_password(&app, "wrong-password");
+    assert!(
+        app.get("/user/confirm-password")
+            .text()
+            .contains("The provided password was incorrect.")
+    );
+    let res = confirm_password(&app, "password");
+    assert_eq!(res.header("location"), Some("/settings/two-factor"));
+    assert_eq!(app.get("/settings/two-factor").status(), 200);
+    // Guests go to the login page.
+    assert_eq!(app.post_form("/logout", &[]).status(), 303);
+    assert_eq!(
+        app.get("/settings/profile").header("location"),
+        Some("/login")
+    );
+}
+#[test]
+fn ending_a_users_credentials_signs_them_out_everywhere() {
+    let app = app_with_demo_user();
+    log_in(&app, "demo@example.com", "password");
+    assert_eq!(app.get("/dashboard").status(), 200);
+    let id = demo_user_id(&app);
+    app.block_on(smeltery::auth::end_credentials(app.app(), id))
+        .expect("ending the credentials");
+    let res = app.get("/dashboard");
+    assert_eq!(res.status(), 303);
+    assert_eq!(res.header("location"), Some("/login"));
+}

@@ -1,0 +1,48 @@
+# Skill: add a CRUD resource
+
+Goal: a model with its table, a resource controller with {% if alloy %}{{ kit_name }} pages{% else %}views{% endif %} and routes, a factory and a seeder.
+
+1. Generate everything in one command (fields are `name:type`, `?` makes a field nullable; types: `string`, `text`,
+   `integer`, `bigint`, `bool`, `float`, `date`, `datetime`, `json`, `uuid`, `<name>_id:foreign`, `file` for an upload):
+
+   ```sh
+   smeltery make:model Post title:string body:text? published:bool -mcrfs
+   ```
+
+   It creates `app/models/post.rs`, `database/migrations/m<timestamp>_create_posts_table.rs`,
+{%- if alloy %}
+   `app/controllers/posts.rs` (returning `alloy::render("posts/{% if react %}index{% else %}Index{% endif %}")` and the other pages),
+   `resources/js/pages/posts/{% if react %}{index,create,show,edit}.tsx{% else %}{Index,Create,Show,Edit}.vue{% endif %}` (the forms use `useForm`),
+   `resources/js/types/post.ts` (the record's TypeScript type),
+{%- else %}
+   `app/controllers/posts.rs`, `resources/views/posts/{index,create,show,edit}.mold.html`,
+{%- endif %}
+   `database/factories/post_factory.rs` and `database/seeders/post_seeder.rs`, and registers them (the
+   `r.resource("/posts")…` {% if auth %}entries{% else %}entry{% endif %} in `routes/web.rs`, the migration, the seeder).
+{%- if auth %} `index` and `show` are public; `create`,
+   `store`, `edit`, `update` and `destroy` are a second `r.resource("/posts")` entry with `.middleware("auth")`.
+{%- else %} All seven routes are public:
+   anyone can create, edit and delete records.
+{%- endif %}
+2. Run the migration: `smeltery migrate`. Seed if wanted: `smeltery db:seed`.
+3. Adjust the validation rules on `PostForm` in `app/controllers/posts.rs` (`#[validate(required, max = 255)]`, …).
+{%- if alloy %} The
+   pages show a failed rule's message under its field (`form.errors.title`).
+{%- endif %} A `file` field
+   has a `mimes` rule (images for a name such as `image` or `photo`, else images, PDF and office or text documents);
+   add types as needed, never `html`, `svg`, `xml` or `js`, which a browser runs as a page of the app.
+{%- if auth %}
+4. Every signed-in user may change every record. To make the whole resource private, add `.middleware("auth")` to
+   the first entry too; where records belong to a user, check `auth.id()` against the record in `edit`, `update` and
+   `destroy`.
+{%- endif %}
+{%- if alloy %}
+{{ 5 if auth else 4 }}. The list and record pages get every field of the model as props (readable in the browser): when a
+   model holds something private, send a struct with the public fields instead.
+{{ 6 if auth else 5 }}. Add a test in `tests/` with `TestApp`: create a record through `post_alloy("/posts", &json)` and check
+   `get_alloy("/posts").assert_prop("posts.0.title", …)`.
+{{ 7 if auth else 6 }}. Run `smeltery test` and `npm run types`.
+{%- else %}
+{{ 5 if auth else 4 }}. Add a test in `tests/` with `TestApp`: create a record through `post_form("/posts", …)` and check `/posts`.
+{{ 6 if auth else 5 }}. Run `smeltery test`.
+{%- endif %}

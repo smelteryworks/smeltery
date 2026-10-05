@@ -1,0 +1,13 @@
+<div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+<p class="text-sm text-gray-500">A Spark: <code>app/sparks/counter.rs</code> with <code>resources/views/sparks/counter.mold.html</code>.</p>
+<p class="mt-2 text-4xl font-semibold tabular-nums">{{ count }}</p>
+<div class="mt-4 flex flex-wrap items-center gap-3">
+<button type="button" wire:click="decrement" class="rounded-md border border-gray-300 px-3 py-1.5 hover:bg-gray-50">-{{ step }}</button>
+<button type="button" wire:click="increment" class="rounded-md bg-gray-900 px-3 py-1.5 text-white hover:bg-gray-700">+{{ step }}</button>
+<label class="text-sm text-gray-600">Step <input type="number" wire:model.live="step" value="{{ step }}" class="ml-1 w-20 rounded-md border border-gray-300 px-2 py-1"></label>
+<span wire:loading class="text-sm text-gray-500">Saving…</span>
+</div>
+@error("step")
+<p class="mt-2 text-sm text-red-600">{{ message }}</p>
+@enderror
+</div>

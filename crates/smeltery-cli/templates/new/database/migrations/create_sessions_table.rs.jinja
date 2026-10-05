@@ -1,0 +1,27 @@
+//! Create the `sessions` table, used when `SESSION_DRIVER=database`.
+
+use smeltery::Result;
+use smeltery::db::migration::{Migration, Schema};
+
+/// Creates `sessions`.
+pub struct CreateSessionsTable;
+
+impl Migration for CreateSessionsTable {
+    fn name(&self) -> &'static str {
+        "{{ sessions_migration_name }}"
+    }
+
+    async fn up(&self, schema: &Schema) -> Result<()> {
+        schema
+            .create("sessions", |t| {
+                t.string("id").unique();
+                t.text("payload");
+                t.big_integer("last_activity").index();
+            })
+            .await
+    }
+
+    async fn down(&self, schema: &Schema) -> Result<()> {
+        schema.drop_if_exists("sessions").await
+    }
+}

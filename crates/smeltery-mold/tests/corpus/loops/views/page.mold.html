@@ -1,0 +1,29 @@
+<ul>
+@for(post in posts)
+  <li>{{ loop.index }}/{{ loop.count }} ({{ loop.index0 }}) {{ post.title }}@if(loop.first) first @endif @if(loop.last) last @endif</li>
+  @for(tag in post.tags)
+    <span>{{ loop.index }}:{{ tag }}</span>
+  @empty
+    <span>no tags</span>
+  @endfor
+@endfor
+</ul>
+@for(item in nothing)
+  never
+@empty
+  <p>nothing here</p>
+@endfor
+@for(key, value in settings)
+  {{ key }}={{ value }}
+@endfor
+@for(i, name in names)
+{{ i }}-{{ name }}
+@endfor
+@for name in names
+* {{ name | upper }}
+@endfor
+@for(x in maybe_list)
+{{ x }}
+@empty
+maybe empty
+@endfor

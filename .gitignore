@@ -1,0 +1,9 @@
+/target
+**/target
+*.db
+*.db-*
+
+# Private working files: the agents' rule book and the private docs (vision, design, decisions, website brief, history).
+/CLAUDE.md
+/VPS.md
+/docs/

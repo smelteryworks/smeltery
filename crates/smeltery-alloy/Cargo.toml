@@ -1,0 +1,39 @@
+[package]
+name = "smeltery-alloy"
+description = "Alloy, the React and Vue bridge of the Smeltery framework: the server side of the Inertia protocol (v3), Vite asset tags and test helpers."
+readme = "README.md"
+keywords = ["inertia", "react", "vue", "vite", "smeltery"]
+categories = ["web-programming", "web-programming::http-server"]
+exclude = ["CLAUDE.md", "docs/", "/target", ".github/", "/resources/"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+axum.workspace = true
+futures-util = { workspace = true, features = ["std"] }
+http.workspace = true
+http-body.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+smeltery-core.workspace = true
+smeltery-mold.workspace = true
+tokio = { workspace = true, features = ["rt"] }
+tracing.workspace = true
+
+[dev-dependencies]
+# The facade, for the doc samples and tests: they use `smeltery::â€¦` paths and its derives. Path only, no version: Cargo leaves it out of the published package (D-140).
+smeltery = { path = "../smeltery", default-features = false }
+tempfile.workspace = true
+tracing-subscriber = { workspace = true, features = ["fmt", "std"] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

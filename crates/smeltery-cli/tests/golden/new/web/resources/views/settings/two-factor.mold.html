@@ -1,0 +1,61 @@
+@extends("layouts/app")
+
+@section("title", "Two-factor authentication")
+
+@section("content")
+  <main class="mx-auto max-w-xl px-4 py-12 sm:px-6">
+    <p class="mono-label">Settings</p>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight">Two-factor authentication</h1>
+    @include("settings/nav", { current: "two-factor" })
+    <section class="panel mt-8 space-y-5 text-sm text-stone-700 dark:text-stone-300">
+      @if(confirmed)
+        <p><strong>On.</strong> Logging in asks for a code from your authenticator app. Recovery codes left: <span class="tabular-nums">{{ recovery_codes_left }}</span>.</p>
+      @elseif(enabled)
+        <p>Scan the QR code with your authenticator app (or type the key), then enter the code it shows to finish.</p>
+        {{-- A data URL drawn by the server from numbers only; never put user input in an <img src>. --}}
+        <img src="{{ qr_code_url }}" alt="QR code for your authenticator app" class="w-48 h-48 rounded-lg bg-white">
+        <p>Key: <code class="font-mono break-all">{{ secret_key }}</code></p>
+        <form method="POST" action="/user/confirmed-two-factor-authentication" class="space-y-5">
+          @csrf
+          <div>
+            <label for="code" class="form-label">Code</label>
+            <input id="code" name="code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" required autocomplete="one-time-code" class="form-input" @error("code") aria-invalid="true" aria-describedby="code-error" @enderror>
+            @error("code")
+              <p id="code-error" class="form-error">{{ message }}</p>
+            @enderror
+          </div>
+          <button type="submit" class="btn-primary">Confirm</button>
+        </form>
+      @else
+        <p><strong>Off.</strong> With two-factor authentication on, logging in also asks for a code from an authenticator app on your phone.</p>
+        <form method="POST" action="/user/two-factor-authentication">
+          @csrf
+          <button type="submit" class="btn-primary">Turn on</button>
+        </form>
+      @endif
+      @if(recovery_codes)
+        <div class="space-y-3">
+          <p><strong>Recovery codes.</strong> Store them somewhere safe: each one logs you in once without the app, and this page shows them only now.</p>
+          <ul class="grid gap-2 font-mono sm:grid-cols-2">
+            @for(code in recovery_codes)
+              <li>{{ code }}</li>
+            @endfor
+          </ul>
+        </div>
+      @endif
+      @if(confirmed)
+        <form method="POST" action="/user/two-factor-recovery-codes">
+          @csrf
+          <button type="submit" class="btn-secondary">New recovery codes</button>
+        </form>
+      @endif
+      @if(enabled)
+        <form method="POST" action="/user/two-factor-authentication">
+          @csrf
+          @method("DELETE")
+          <button type="submit" class="btn-secondary">Turn off</button>
+        </form>
+      @endif
+    </section>
+  </main>
+@endsection

@@ -1,0 +1,67 @@
+[package]
+name = "smeltery-watchfire"
+description = "Watchfire, the agent runtime of the Smeltery framework: supervised long-running agents, background jobs with a database queue, and a scheduler, on one Tokio runtime."
+readme = "README.md"
+keywords = ["agent", "supervisor", "jobs", "scheduler", "smeltery"]
+categories = ["asynchronous", "concurrency", "web-programming"]
+exclude = ["CLAUDE.md", "docs/", "/target", ".github/"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[features]
+default = []
+## LLM helpers: the `llm` module (provider trait, fake provider, Anthropic adapter, tool loop, budgets).
+llm = []
+## Mail with Watchfire: `mailer.queue(mail)` (the `SendMail` job) and alert mail (`WATCHFIRE_ALERT_MAIL`).
+mail = ["dep:smeltery-mail"]
+## The Redis queue driver (`QUEUE_DRIVER=redis`, the server of `REDIS_URL`); turns on the Redis support of smeltery-core.
+redis = ["dep:redis", "smeltery-core/redis"]
+# Not for apps: builds the PostgreSQL and MySQL runs of Watchfire's database test suite (`src/backend_tests.rs`,
+# `DATABASE_URL_PG` / `DATABASE_URL_MYSQL`), so other test builds compile the core without those backends.
+backend-tests = ["smeltery-core/postgres", "smeltery-core/mysql"]
+
+[dependencies]
+axum = { workspace = true, features = ["tokio", "http1", "json", "query"] }
+bytes.workspace = true
+futures-util = { workspace = true, features = ["std"] }
+getrandom.workspace = true
+hmac.workspace = true
+http.workspace = true
+hyper = { workspace = true, features = ["server", "http1"] }
+hyper-util = { workspace = true, features = ["tokio"] }
+redis = { workspace = true, optional = true, features = ["tokio-comp", "connection-manager", "tokio-rustls-comp", "script"] }
+reqwest = { workspace = true, features = ["rustls-no-provider"] }
+rustls = { workspace = true, features = ["ring", "std", "tls12"] }
+rustls-platform-verifier.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+smeltery-core.workspace = true
+smeltery-mail = { workspace = true, optional = true }
+smeltery-mold.workspace = true
+smeltery-mold-macros.workspace = true
+smeltery-sparks.workspace = true
+subtle.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt", "macros", "sync", "time", "signal", "net"] }
+tokio-util.workspace = true
+tower = { workspace = true, features = ["util"] }
+tracing.workspace = true
+
+[dev-dependencies]
+smeltery-core = { workspace = true, features = ["sqlite"] }
+tempfile.workspace = true
+axum = { workspace = true }
+http.workspace = true
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "sync", "time", "test-util", "io-util", "net"] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

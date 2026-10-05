@@ -1,0 +1,55 @@
+<section class="wf-section" aria-labelledby="wf-queue-title">
+<div class="wf-section-head">
+<h2 id="wf-queue-title">Queue and schedule</h2>
+@if(has_queue)
+<span class="wf-chip">{{ queue.driver }} queue</span>
+@endif
+</div>
+<dl class="wf-tiles">
+@if(has_queue)
+<div class="wf-tile" data-tone="info"><dt>Queue depth</dt><dd><span class="wf-tile-value">{{ queue.pending }}</span><span class="wf-tile-sub">{{ queue.reserved }} reserved</span></dd></div>
+<div class="wf-tile"@if(queue.dead != "0") data-tone="bad"@else data-tone="idle"@endif><dt>Dead letters</dt><dd><span class="wf-tile-value">{{ queue.dead }}</span><span class="wf-tile-sub">jobs out of attempts</span></dd></div>
+@else
+<div class="wf-tile" data-tone="idle"><dt>Queue</dt><dd><span class="wf-tile-value wf-tile-none">none</span><span class="wf-tile-sub">no queue in this process</span></dd></div>
+@endif
+<div class="wf-tile wf-tile-wide" data-tone="info"><dt>Next scheduled run</dt><dd>@if(next_run)<span class="wf-tile-value wf-tile-time">{{ next_run }}</span><span class="wf-tile-sub">{{ next_name }} · UTC</span>@else<span class="wf-tile-value wf-tile-none">none</span><span class="wf-tile-sub">nothing scheduled</span>@endif</dd></div>
+</dl>
+<div class="wf-grid">
+@if(has_queue)
+<div class="wf-panel">
+<h3>Dead letters</h3>
+@if(dead_letters)
+<div class="wf-scroll" tabindex="0" role="region" aria-label="Dead letters, scrollable">
+<table class="wf-table">
+<thead><tr><th scope="col">#</th><th scope="col">Job</th><th scope="col" class="wf-num">Attempts</th><th scope="col">Failed (UTC)</th><th scope="col">Error</th></tr></thead>
+<tbody>
+@for(d in dead_letters)
+<tr wire:key="dead-{{ d.id }}"><td class="wf-mono">{{ d.id }}</td><td>{{ d.job }}</td><td class="wf-num">{{ d.attempts }}</td><td class="wf-mono">{{ d.failed }}</td><td><span class="wf-error">{{ d.error }}</span></td></tr>
+@endfor
+</tbody>
+</table>
+</div>
+@else
+<p class="wf-empty-line">No dead letters.</p>
+@endif
+</div>
+@endif
+<div class="wf-panel">
+<h3>Schedule</h3>
+@if(schedule)
+<div class="wf-scroll" tabindex="0" role="region" aria-label="Schedule, scrollable">
+<table class="wf-table">
+<thead><tr><th scope="col">Name</th><th scope="col">Kind</th><th scope="col">Expression</th><th scope="col">Next run (UTC)</th></tr></thead>
+<tbody>
+@for(s in schedule)
+<tr wire:key="task-{{ s.name }}"><td><b>{{ s.name }}</b></td><td><span class="wf-chip">{{ s.kind }}</span></td><td class="wf-mono">{{ s.expression }}</td><td class="wf-mono">{{ s.next }}</td></tr>
+@endfor
+</tbody>
+</table>
+</div>
+@else
+<p class="wf-empty-line">Nothing scheduled.</p>
+@endif
+</div>
+</div>
+</section>

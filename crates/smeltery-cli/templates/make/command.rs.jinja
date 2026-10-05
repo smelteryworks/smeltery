@@ -1,0 +1,22 @@
+//! The `{{ command }}` command.
+
+use smeltery::console::{Args, Command};
+use smeltery::{App, Result};
+
+/// `smeltery {{ command }}`.
+pub struct {{ struct_name }};
+
+impl Command for {{ struct_name }} {
+    fn name(&self) -> &'static str {
+        "{{ command }}"
+    }
+
+    fn about(&self) -> &'static str {
+        "{{ about }}"
+    }
+
+    async fn run(&self, _app: &App, _args: Args) -> Result<()> {
+        println!("{{ command }}: done");
+        Ok(())
+    }
+}

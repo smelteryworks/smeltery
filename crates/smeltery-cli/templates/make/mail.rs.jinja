@@ -1,0 +1,19 @@
+//! The `{{ struct_name }}` mail; its HTML body is `resources/views/mail/{{ view }}.mold.html`.
+
+use smeltery::prelude::*;
+
+/// Fields are the template's variables. Send it with `mailer.send({{ struct_name }} { … }).await?`.
+#[derive(Mold)]
+#[mold("mail/{{ view }}")]
+pub struct {{ struct_name }} {
+    /// The recipient's name.
+    pub name: String,
+    /// The recipient's address.
+    pub email: String,
+}
+
+impl Mailable for {{ struct_name }} {
+    fn envelope(&self) -> Envelope {
+        Envelope::new().to(self.email.as_str()).subject("{{ subject }}")
+    }
+}

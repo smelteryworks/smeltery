@@ -1,0 +1,24 @@
+//! The `{{ spark }}` Spark; its view is `resources/views/sparks/{{ spark }}.mold.html`.
+
+use serde::{Deserialize, Serialize};
+use smeltery::prelude::*;
+
+/// A live component: `@spark("{{ spark }}")` shows it on a page.
+#[derive(Serialize, Deserialize, Default, Spark)]
+#[spark(name = "{{ spark }}")]
+pub struct {{ struct_name }} {
+    /// Set by the page through `wire:model="message"`.
+    #[spark(model)]
+    pub message: String,
+    /// How many times `save` ran.
+    pub saved: i64,
+}
+
+#[actions]
+impl {{ struct_name }} {
+    /// `wire:click="save"`.
+    pub async fn save(&mut self) -> Result<()> {
+        self.saved += 1;
+        Ok(())
+    }
+}

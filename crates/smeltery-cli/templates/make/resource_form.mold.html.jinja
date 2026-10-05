@@ -1,0 +1,41 @@
+@extends("layouts/app")
+
+@section("title", "{% if edit %}Edit {{ m.lower }}{% else %}New {{ m.lower }}{% endif %}")
+
+@section("content")
+  <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+    <h1 class="text-3xl font-bold tracking-tight">{% if edit %}Edit {{ m.lower }} {{ m.id_echo }}{% else %}New {{ m.lower }}{% endif %}</h1>
+    <form method="POST" action="{{ m.url }}{% if edit %}/{{ m.id_echo }}{% endif %}"{% if m.has_files %} enctype="multipart/form-data"{% endif %} class="panel mt-8 space-y-5">
+      @csrf
+{%- if edit %}
+      @method("PUT")
+{%- endif %}
+{%- for f in m.form_fields %}
+      <div>
+        <label for="{{ f.name }}" class="form-label">{{ f.label }}</label>
+{%- if f.checkbox %}
+{%- if edit %}
+        @if({{ f.path }})
+          <input id="{{ f.name }}" name="{{ f.name }}" type="checkbox" value="true" checked class="mt-2 h-4 w-4 accent-molten-700" @error("{{ f.name }}") aria-invalid="true" aria-describedby="{{ f.name }}-error" @enderror>
+        @else
+          <input id="{{ f.name }}" name="{{ f.name }}" type="checkbox" value="true" class="mt-2 h-4 w-4 accent-molten-700" @error("{{ f.name }}") aria-invalid="true" aria-describedby="{{ f.name }}-error" @enderror>
+        @endif
+{%- else %}
+        <input id="{{ f.name }}" name="{{ f.name }}" type="checkbox" value="true" class="mt-2 h-4 w-4 accent-molten-700" @error("{{ f.name }}") aria-invalid="true" aria-describedby="{{ f.name }}-error" @enderror>
+{%- endif %}
+{%- elif f.file %}
+        <input id="{{ f.name }}" name="{{ f.name }}"{% if edit %} type="file"{% else %}{{ f.attrs }}{% endif %} class="form-input" @error("{{ f.name }}") aria-invalid="true" aria-describedby="{{ f.name }}-error" @enderror>
+{%- elif f.textarea %}
+        <textarea id="{{ f.name }}" name="{{ f.name }}"{{ f.attrs }} class="form-input" @error("{{ f.name }}") aria-invalid="true" aria-describedby="{{ f.name }}-error" @enderror>{% if edit %}{{ f.old_or_value }}{% else %}{{ f.old }}{% endif %}</textarea>
+{%- else %}
+        <input id="{{ f.name }}" name="{{ f.name }}"{{ f.attrs }} class="form-input" value="{% if edit %}{{ f.old_or_value }}{% else %}{{ f.old }}{% endif %}" @error("{{ f.name }}") aria-invalid="true" aria-describedby="{{ f.name }}-error" @enderror>
+{%- endif %}
+        @error("{{ f.name }}")
+          <p id="{{ f.name }}-error" class="form-error">{{ m.message_echo }}</p>
+        @enderror
+      </div>
+{%- endfor %}
+      <div class="flex items-center gap-3"><button type="submit" class="btn-primary">Save</button> <a href="{{ m.url }}" class="btn-secondary">Cancel</a></div>
+    </form>
+  </main>
+@endsection

@@ -1,0 +1,41 @@
+//! The `{{ spark }}` Spark; its view is `resources/views/sparks/{{ spark }}.mold.html`. It listens to `{{ event_name }}`
+//! on `{{ channel }}` (Anvil) and updates without JavaScript.
+
+use serde::{Deserialize, Serialize};
+use smeltery::prelude::*;
+
+/// A live component that listens to broadcasts: `@spark("{{ spark }}")` shows it on a page.
+#[derive(Serialize, Deserialize, Default, Spark)]
+#[spark(name = "{{ spark }}", stream)]
+pub struct {{ struct_name }} {
+{%- for f in fields %}
+    /// Names the channel (`{{ "{" ~ f.name ~ "}" }}`); set it in `mount`, from the page's props or the signed-in user.
+    pub {{ f.name }}: {{ f.ty }},
+{%- endfor %}
+    /// How many events arrived since the page opened.
+    pub received: i64,
+}
+
+/// The data of `{{ event_name }}`: add the fields of the event this Spark reads (others are ignored).
+#[derive(Debug, Deserialize)]
+pub struct {{ data_struct }} {}
+
+#[actions]
+impl {{ struct_name }} {
+{%- if fields %}
+    /// Runs on the first render: `@spark("{{ spark }}", { {% for f in fields %}{{ f.name }}: …{% if not loop.last %}, {% endif %}{% endfor %} })`.
+    pub async fn mount(&mut self, ctx: &mut SparkCtx) -> Result<()> {
+{%- for f in fields %}
+        self.{{ f.name }} = ctx.prop("{{ f.name }}").unwrap_or_default();
+{%- endfor %}
+        Ok(())
+    }
+{% endif %}
+    /// Runs when `{{ event_name }}` is broadcast on `{{ channel }}` (the channel rules of `routes/channels.rs` decide
+    /// whether this visitor receives it).
+    #[on("anvil:{{ channel }}", "{{ event_rust }}")]
+    pub async fn received(&mut self, _event: {{ data_struct }}) -> Result<()> {
+        self.received += 1;
+        Ok(())
+    }
+}

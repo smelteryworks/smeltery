@@ -1,0 +1,12 @@
+<div class="panel text-sm text-stone-700 dark:text-stone-300">
+  <h3 class="mb-2 text-base font-semibold text-forge-900 dark:text-ash-100">Announcements</h3>
+  @if(messages)
+    <ul class="space-y-1" aria-live="polite">
+      @for(message in messages)
+        <li>{{ message }}</li>
+      @endfor
+    </ul>
+  @else
+    <p>Live from the <code>announcements</code> channel (a Spark, <code>app/sparks/announcements.rs</code>): a handler, a job or an agent sends one with <code>anvil.send(&amp;AnnouncementPosted { message })</code>.</p>
+  @endif
+</div>

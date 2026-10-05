@@ -1,0 +1,54 @@
+//! Database migrations, run in the order they are added below.
+
+pub mod {{ users_migration }};
+{%- if auth or not web %}
+pub mod {{ resets_migration }};
+{%- endif %}
+pub mod {{ sessions_migration }};
+{%- if agents %}
+pub mod {{ watchfire_migration }};
+{%- endif %}
+pub mod {{ cache_migration }};
+{%- if agents or anvil %}
+pub mod {{ pubsub_migration }};
+{%- endif %}
+{%- if temper %}
+pub mod {{ two_factor_migration }};
+{%- endif %}
+{%- if hallmark %}
+pub mod {{ hallmark_migration }};
+{%- endif %}
+{%- if presence %}
+pub mod {{ presence_migration }};
+{%- endif %}
+// smeltery:mods
+
+use smeltery::db::migration::Migrator;
+
+/// Register every migration, oldest first.
+pub fn register(m: &mut Migrator) {
+    m.add({{ users_migration }}::CreateUsersTable);
+{%- if auth or not web %}
+    m.add({{ resets_migration }}::CreatePasswordResetTokensTable);
+{%- endif %}
+    m.add({{ sessions_migration }}::CreateSessionsTable);
+{%- if agents %}
+    m.add({{ watchfire_migration }}::CreateWatchfireTables);
+{%- endif %}
+    m.add({{ cache_migration }}::CreateCacheTables);
+{%- if agents or anvil %}
+    m.add({{ pubsub_migration }}::CreatePubsubMessagesTable);
+{%- endif %}
+{%- if temper %}
+    m.add(
+        {{ two_factor_migration }}::AddTwoFactorColumnsToUsersTable,
+    );
+{%- endif %}
+{%- if hallmark %}
+    m.add({{ hallmark_migration }}::CreatePersonalAccessTokensTable);
+{%- endif %}
+{%- if presence %}
+    m.add({{ presence_migration }}::CreatePresenceTables);
+{%- endif %}
+    // smeltery:migrations
+}

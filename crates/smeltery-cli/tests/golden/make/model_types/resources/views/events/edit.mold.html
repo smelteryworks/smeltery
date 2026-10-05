@@ -1,0 +1,67 @@
+@extends("layouts/app")
+
+@section("title", "Edit event")
+
+@section("content")
+  <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+    <h1 class="text-3xl font-bold tracking-tight">Edit event {{ event.id }}</h1>
+    <form method="POST" action="/events/{{ event.id }}" class="panel mt-8 space-y-5">
+      @csrf
+      @method("PUT")
+      <div>
+        <label for="name" class="form-label">Name</label>
+        <input id="name" name="name" type="text" required class="form-input" value="{{ old("name") | default(event.name) }}" @error("name") aria-invalid="true" aria-describedby="name-error" @enderror>
+        @error("name")
+          <p id="name-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <div>
+        <label for="notes" class="form-label">Notes</label>
+        <textarea id="notes" name="notes" class="form-input" @error("notes") aria-invalid="true" aria-describedby="notes-error" @enderror>{{ old("notes") | default(event.notes) }}</textarea>
+        @error("notes")
+          <p id="notes-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <div>
+        <label for="seats" class="form-label">Seats</label>
+        <input id="seats" name="seats" type="number" required class="form-input" value="{{ old("seats") | default(event.seats) }}" @error("seats") aria-invalid="true" aria-describedby="seats-error" @enderror>
+        @error("seats")
+          <p id="seats-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <div>
+        <label for="views" class="form-label">Views</label>
+        <input id="views" name="views" type="number" class="form-input" value="{{ old("views") | default(event.views) }}" @error("views") aria-invalid="true" aria-describedby="views-error" @enderror>
+        @error("views")
+          <p id="views-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <div>
+        <label for="open" class="form-label">Open</label>
+        @if(event.open)
+          <input id="open" name="open" type="checkbox" value="true" checked class="mt-2 h-4 w-4 accent-molten-700" @error("open") aria-invalid="true" aria-describedby="open-error" @enderror>
+        @else
+          <input id="open" name="open" type="checkbox" value="true" class="mt-2 h-4 w-4 accent-molten-700" @error("open") aria-invalid="true" aria-describedby="open-error" @enderror>
+        @endif
+        @error("open")
+          <p id="open-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <div>
+        <label for="price" class="form-label">Price</label>
+        <input id="price" name="price" type="number" step="any" class="form-input" value="{{ old("price") | default(event.price) }}" @error("price") aria-invalid="true" aria-describedby="price-error" @enderror>
+        @error("price")
+          <p id="price-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <div>
+        <label for="user_id" class="form-label">User id</label>
+        <input id="user_id" name="user_id" type="number" required class="form-input" value="{{ old("user_id") | default(event.user_id) }}" @error("user_id") aria-invalid="true" aria-describedby="user_id-error" @enderror>
+        @error("user_id")
+          <p id="user_id-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <div class="flex items-center gap-3"><button type="submit" class="btn-primary">Save</button> <a href="/events" class="btn-secondary">Cancel</a></div>
+    </form>
+  </main>
+@endsection

@@ -1,0 +1,38 @@
+# Skill: add a {{ kit_name }} page (Alloy)
+
+A page is a {{ kit_name }} component in `resources/js/pages/`; a Rust controller decides which page to show and with
+which props. The first visit gets HTML (`resources/views/app.mold.html`), every later visit gets the page as JSON
+(the Inertia protocol, spoken by Alloy).
+
+1. Generate it: `smeltery make:page Pricing`. It creates `app/controllers/pricing.rs` (returning
+   `alloy::render("{% if react %}pricing{% else %}Pricing{% endif %}")`), `resources/js/pages/{% if react %}pricing.tsx{% else %}Pricing.vue{% endif %}` and the route
+   `r.get("/pricing", …).name("pricing")` in `routes/web.rs`. `smeltery make:model Post title:string --all` writes
+   a whole resource: a controller and the pages `posts/{% if react %}{index,create,show,edit}.tsx{% else %}{Index,Create,Show,Edit}.vue{% endif %}`.
+2. Props: chain them on the page in the controller:
+
+   ```rust
+   use smeltery::alloy::{self, Page};
+
+   pub async fn show(db: Db) -> smeltery::Result<Page> {
+       let plans = Plan::all(&db).await?;
+       Ok(alloy::render("{% if react %}pricing{% else %}Pricing{% endif %}")
+           .with("plans", plans) // sent on every visit
+           .optional("stats", move || async move { Ok(Stats::load().await?) }) // only when a reload asks
+           .defer("reviews", move || async move { Ok(Review::recent().await?) })) // loaded right after the page
+   }
+   ```
+
+   Or one struct per page: `#[derive(serde::Serialize, smeltery::Alloy)] #[alloy("{% if react %}pricing{% else %}Pricing{% endif %}")] pub struct
+   Pricing { pub plans: Vec<Plan> }`, returned from the handler.
+3. Every prop is readable in the browser. Never pass a model with secrets (password hashes, tokens): send a struct
+   with only the fields the page needs. Values flashed with `session.flash(key, value)` reach the next page as
+   `usePage().flash` and are public too.
+4. In the page, the props are the component's {% if react %}arguments (`export default function Pricing({ plans }: { plans: Plan[] })`){% else %}props (`defineProps<{ plans: Plan[] }>()`){% endif %}.
+   Shared props (`app`, {% if auth %}`auth.user`, {% endif %}from `app/providers/alloy.rs`) are in `usePage().props`.
+   Partial reloads: `router.reload({ only: ['stats'] })`; deferred props: `<Deferred data="reviews">…</Deferred>`.
+   Links: `<Link href="/pricing">`; forms: `useForm({ … })` and `form.post('/url')`, with the messages of a failed
+   validation in `form.errors.field`.
+5. Test it in `tests/`: `app.get_alloy("/pricing").assert_component("{% if react %}pricing{% else %}Pricing{% endif %}").assert_prop("plans.0.name", "Basic")`
+   (`use smeltery::alloy::testing::{AlloyAssertions as _, AlloyRequests as _};`) and
+   `assert_page_file_exists("{% if react %}pricing{% else %}Pricing{% endif %}")`.
+6. Run `smeltery test` and `npm run types`.

@@ -1,0 +1,60 @@
+[package]
+name = "smeltery-anvil"
+description = "Anvil, the real-time layer of the Smeltery framework: a WebSocket server speaking the Pusher Channels protocol 7, broadcasting from handlers, jobs and agents, and channel authorization."
+readme = "README.md"
+keywords = ["websocket", "pusher", "broadcasting", "realtime", "smeltery"]
+categories = ["web-programming", "web-programming::websocket"]
+exclude = ["CLAUDE.md", "docs/", "/target", ".github/"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[features]
+## The `redis` presence store, used when the app's PubSub driver is `redis`.
+redis = ["dep:redis", "dep:rustls", "smeltery-core/redis"]
+
+[dependencies]
+axum = { workspace = true, features = ["tokio", "json"] }
+bytes.workspace = true
+form_urlencoded.workspace = true
+futures-util = { workspace = true, features = ["std", "sink"] }
+getrandom.workspace = true
+hmac.workspace = true
+http.workspace = true
+hyper.workspace = true
+hyper-util = { workspace = true, features = ["tokio"] }
+redis = { workspace = true, optional = true, features = ["tokio-comp", "connection-manager", "tokio-rustls-comp"] }
+rustls = { workspace = true, optional = true, features = ["ring", "std"] }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+smeltery-core.workspace = true
+smeltery-macros.workspace = true
+tokio = { workspace = true, features = ["rt", "sync", "time", "macros"] }
+# The WebSocket frame codec over the socket Anvil upgrades itself (no axum `ws`): `handshake` for the accept key.
+tokio-tungstenite.workspace = true
+tokio-util.workspace = true
+tungstenite = { workspace = true, features = ["handshake"] }
+tracing.workspace = true
+
+[dev-dependencies]
+# The facade, for the doc samples: they use `smeltery::…` paths and the derive expands to `::smeltery::anvil` paths. Path only, no version: Cargo leaves it out of the published package (D-140).
+smeltery = { path = "../smeltery", default-features = false }
+# SQLite for the cross-process test (two apps on one database file).
+smeltery-core = { workspace = true, features = ["sqlite"] }
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "sync", "time", "test-util", "net", "io-util", "process"] }
+# A real WebSocket client for the socket tests (127.0.0.1 only).
+tokio-tungstenite = { workspace = true, features = ["connect"] }
+tracing-subscriber = { workspace = true, features = ["fmt", "std"] }
+trybuild.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

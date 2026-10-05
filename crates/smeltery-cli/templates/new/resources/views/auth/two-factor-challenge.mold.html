@@ -1,0 +1,35 @@
+@extends("layouts/app")
+
+@section("title", "Two-factor authentication")
+
+@section("content")
+  <main class="mx-auto max-w-md px-4 py-12 sm:py-16">
+    <h1 class="text-center text-2xl font-bold tracking-tight">Two-factor authentication</h1>
+    <p class="mt-2 text-center text-sm text-stone-600 dark:text-stone-400">Enter the code from your authenticator app.</p>
+    <form method="POST" action="/two-factor-challenge" class="panel mt-8 space-y-5">
+      @csrf
+      <div>
+        <label for="code" class="form-label">Code</label>
+        <input id="code" name="code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" required autofocus autocomplete="one-time-code" class="form-input" @error("code") aria-invalid="true" aria-describedby="code-error" @enderror>
+        @error("code")
+          <p id="code-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <button type="submit" class="btn-primary w-full">Log in</button>
+    </form>
+    <details class="panel mt-6 text-sm" @error("recovery_code") open @enderror>
+      <summary class="link">Use a recovery code instead</summary>
+      <form method="POST" action="/two-factor-challenge" class="mt-4 space-y-5">
+        @csrf
+        <div>
+          <label for="recovery_code" class="form-label">Recovery code</label>
+          <input id="recovery_code" name="recovery_code" type="text" required autocomplete="off" class="form-input" @error("recovery_code") aria-invalid="true" aria-describedby="recovery_code-error" @enderror>
+          @error("recovery_code")
+            <p id="recovery_code-error" class="form-error">{{ message }}</p>
+          @enderror
+        </div>
+        <button type="submit" class="btn-secondary w-full">Log in with a recovery code</button>
+      </form>
+    </details>
+  </main>
+@endsection

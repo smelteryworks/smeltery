@@ -1,0 +1,67 @@
+@extends("layouts/app")
+
+@section("title", name)
+
+@section("content")
+  {{-- The welcome page. Replace it with your own: the route is in routes/web.rs, the controller in app/controllers/home.rs. --}}
+  <main class="mx-auto max-w-6xl px-4 sm:px-6">
+    <section class="grid items-center gap-10 py-14 sm:py-20 lg:grid-cols-[1.15fr_1fr]">
+      <div>
+        <p class="inline-flex items-center gap-2 rounded-full border border-ash-200 bg-white/70 px-3 py-1 font-mono text-xs text-stone-700 dark:border-forge-700 dark:bg-forge-900/70 dark:text-stone-300">
+          <span class="h-1.5 w-1.5 rounded-full bg-molten-500 shadow-[0_0_8px_2px_rgb(255_74_28/0.7)]" aria-hidden="true"></span>
+          Rust · Smeltery {{ version }} · Mold + Sparks
+        </p>
+        <h1 class="mt-6 text-4xl font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl">
+          {{ name }} is <span class="text-molten-700 dark:text-molten-500">running</span> on <span class="bg-linear-to-r from-molten-800 to-molten-600 bg-clip-text text-transparent dark:from-molten-500 dark:to-gold-400">Smeltery</span>
+        </h1>
+        <p class="mt-6 max-w-xl text-lg text-stone-700 dark:text-stone-300">
+          The forge is hot. Routes, models, live components and background work are wired up; shape the app from here.
+        </p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <a href="https://github.com/smelteryworks/smeltery#readme" class="btn-primary">Read the guide</a>
+          <a href="https://docs.rs/smeltery" class="btn-secondary">API docs on docs.rs</a>
+        </div>
+      </div>
+      <div class="relative mx-auto aspect-square w-full max-w-60 sm:max-w-sm" aria-hidden="true">
+        <div class="forge-glow absolute inset-6 rounded-full"></div>
+        <svg class="absolute inset-0 m-auto w-3/5 drop-shadow-[0_0_30px_rgb(255_122_31/0.55)]" viewBox="0 0 120 100">
+          <defs>
+            <linearGradient id="ingot-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe2a8"/><stop offset="1" stop-color="#ffb84d"/></linearGradient>
+            <linearGradient id="ingot-left" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7a52"/><stop offset="1" stop-color="#c72e16"/></linearGradient>
+            <linearGradient id="ingot-right" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8361d"/><stop offset="1" stop-color="#7a1c0b"/></linearGradient>
+          </defs>
+          <path d="M60 20 104 40 60 60 16 40z" fill="url(#ingot-top)"/>
+          <path d="M16 40 60 60v24L16 64z" fill="url(#ingot-left)"/>
+          <path d="M104 40 60 60v24l44-20z" fill="url(#ingot-right)"/>
+        </svg>
+        <span class="spark" style="--x: 30%; --t: 3.2s; --d: 0s; --drift: -18px"></span>
+        <span class="spark" style="--x: 42%; --t: 2.6s; --d: 0.8s; --drift: 12px"></span>
+        <span class="spark" style="--x: 50%; --t: 3.6s; --d: 1.6s; --drift: -6px"></span>
+        <span class="spark" style="--x: 58%; --t: 2.9s; --d: 0.4s; --drift: 20px"></span>
+        <span class="spark" style="--x: 66%; --t: 3.4s; --d: 2.1s; --drift: -12px"></span>
+        <span class="spark" style="--x: 36%; --t: 4s; --d: 2.7s; --drift: 24px"></span>
+        <span class="spark" style="--x: 62%; --t: 3.8s; --d: 1.2s; --drift: -22px"></span>
+      </div>
+    </section>
+
+    <section aria-labelledby="next-steps" class="pb-16">
+      <h2 id="next-steps" class="mono-label">Next steps</h2>
+      <div class="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <x-card title="Edit this page">
+          <p>The route lives in <code>routes/web.rs</code>; this page is <code>resources/views/home.mold.html</code>. Debug builds reload views on the next request.</p>
+        </x-card>
+        <x-card title="Make a resource">
+          <p>Run <code>smeltery make:model Post title:string <span class="whitespace-nowrap">--all</span></code> for a model, migration, factory, seeder, controller, views and routes, then <code>smeltery migrate</code>.</p>
+        </x-card>
+        <x-card title="Watch the agents">
+          <p>Agents, jobs and the schedule run in this process. <a href="/_watchfire" class="link">Open the Watchfire dashboard</a>.</p>
+        </x-card>
+      </div>
+    </section>
+
+    <section aria-labelledby="live" class="pb-20">
+      <h2 id="live" class="mono-label">A live component</h2>
+      @spark("counter", { start: 0 })
+    </section>
+  </main>
+@endsection

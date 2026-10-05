@@ -1,0 +1,14 @@
+<!-- `GET {{ url }}` (`{{ handler }}` in `app/controllers/{{ module }}.rs`). -->
+<script setup lang="ts">
+import { Head } from '@inertiajs/vue3';
+</script>
+
+<template>
+    <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+        <Head title="{{ title }}" />
+        <h1 class="text-3xl font-bold tracking-tight">{{ title }}</h1>
+        <p class="mt-4 text-stone-700 dark:text-stone-300">
+            This page is <code class="font-mono text-sm">{{ file }}</code>.
+        </p>
+    </main>
+</template>

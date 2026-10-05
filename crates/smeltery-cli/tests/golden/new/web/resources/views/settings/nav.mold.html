@@ -1,0 +1,6 @@
+{{-- The tabs of the settings pages: @include("settings/nav", { current: "profile" }). --}}
+<nav class="mt-6 flex flex-wrap gap-2 text-sm" aria-label="Settings">
+  <a href="/settings/profile" class="rounded-lg px-3 py-2 font-medium hover:bg-ash-100 focus-visible:outline-2 focus-visible:outline-molten-500 dark:hover:bg-forge-900" @if(current == "profile") aria-current="page" @endif>Profile</a>
+  <a href="/settings/password" class="rounded-lg px-3 py-2 font-medium hover:bg-ash-100 focus-visible:outline-2 focus-visible:outline-molten-500 dark:hover:bg-forge-900" @if(current == "password") aria-current="page" @endif>Password</a>
+  <a href="/settings/two-factor" class="rounded-lg px-3 py-2 font-medium hover:bg-ash-100 focus-visible:outline-2 focus-visible:outline-molten-500 dark:hover:bg-forge-900" @if(current == "two-factor") aria-current="page" @endif>Two-factor authentication</a>
+</nav>

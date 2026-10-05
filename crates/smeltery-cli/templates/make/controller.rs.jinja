@@ -1,0 +1,22 @@
+{%- if alloy -%}
+//! The `{{ module }}` {% if handler == "show" %}page{% else %}controller{% endif %}.
+
+use smeltery::alloy::{self, Page};
+
+/// `GET {{ url }}`: the page `{{ file }}`.
+pub async fn {{ handler }}() -> Page {
+    alloy::render("{{ component }}")
+}
+{% else -%}
+//! The `{{ module }}` controller.
+
+/// The page `resources/views/{{ views }}/index.mold.html`.
+#[derive(smeltery::Mold)]
+#[mold("{{ views }}/index")]
+pub struct IndexView {}
+
+/// Shows the index page.
+pub async fn index() -> IndexView {
+    IndexView {}
+}
+{% endif -%}

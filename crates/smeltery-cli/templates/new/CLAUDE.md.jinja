@@ -1,0 +1,564 @@
+# {{ title }}: guide for coding agents
+
+This is a [Smeltery](https://github.com/smelteryworks/smeltery) application: a batteries-included Rust web
+framework. One crate; every folder is a Rust module.
+
+## Layout
+
+| Path | What lives there |
+|---|---|
+| `bootstrap/main.rs` | The binary. Calls `smeltery::run` with the app's `build` function. |
+| `bootstrap/app.rs` | The library root. Pulls in the folders below with `#[path]` and defines `build`, which registers config, migrations, seeders, commands{% if web %} and routes{% endif %}. |
+| `app/` | Application code: {% if agents %}`agents`, {% endif %}`commands`, {% if web %}`controllers`, {% endif %}`helpers`, `jobs`, `mail`, `middleware`, `models`, `providers`, `services`{% if mold %}, `sparks`{% endif %}.{% if alloy %} `app/providers/alloy.rs` holds the root page and the props every page shares.{% endif %} |
+| `config/` | Typed settings structs, read with `smeltery::config::env("KEY", default)`. |
+| `database/` | `migrations`, `seeders`, `factories`, each with a `mod.rs` that registers them.{% if "sqlite:" in database_url %} The SQLite database file `database.sqlite` (not committed).{% endif %} |
+{%- if mold %}
+| `routes/web.rs`, `routes/api.rs` | Route registration. API routes are registered with `api_routes`.{% if hallmark %} `routes/api.rs` issues API tokens (`app/controllers/api/`).{% endif %}{% if anvil %} `routes/channels.rs` declares the broadcasting channels; `app/events/` holds the events.{% endif %} |
+| `resources/views/` | Mold templates (`*.mold.html`): pages, `layouts/`, `components/` (`<x-…>` Mold components), `sparks/` (Spark views). |
+| `resources/css/app.css` | The Tailwind entry point: the theme colours and the component classes (`btn-primary`, `form-input`, `panel`, ...). Tailwind builds `public/assets/css/app.css` from it and from the classes in the views. |
+{%- elif alloy %}
+| `routes/web.rs`, `routes/api.rs` | Route registration. API routes are registered with `api_routes`.{% if hallmark %} `routes/api.rs` issues API tokens (`app/controllers/api/`).{% endif %}{% if anvil %} `routes/channels.rs` declares the broadcasting channels; `app/events/` holds the events.{% endif %} |
+| `resources/js/` | The {{ kit_name }} side (TypeScript): `{{ entry }}` (the Vite entry), `pages/` (one file per page: `alloy::render("{{ pages.welcome }}")` shows `pages/{{ pages.welcome }}.{{ page_ext }}`), `layouts/`, `components/`, `types/`. |
+| `resources/views/app.mold.html` | The root template: the HTML of a first visit, with `@vite` (the scripts and styles) and `@alloy` (the page). Mail templates live in `resources/views/mail/`. |
+| `resources/css/app.css` | The stylesheet the entry imports: the theme colours and the component classes (`btn-primary`, `form-input`, `panel`, ...){% if tailwind %}, built by Tailwind (`@tailwindcss/vite`) from the classes in `resources/js/`{% else %}, prebuilt from the starter kit's classes (no Tailwind){% endif %}. |
+| `package.json`, `vite.config.ts` | The npm packages (exact versions) and the Vite build: `npm run dev`, `npm run build` (into `public/build/`), `npm run types` (the type check). |
+{%- endif %}
+| `public/` | Files served as-is.{% if alloy %} `public/build/` holds the built JavaScript and CSS (`npm run build`; not committed).{% endif %} |
+| `storage/` | Files the app writes: `app/public` and `app/private` (the app's own files), `framework` (Smeltery's working files: the file cache{% if web %}, file sessions, upload temp files{% endif %}), `logs`. Not committed. |
+| `tests/` | Integration tests using `smeltery::testing::TestApp`. |
+| `.env` | Local settings and secrets. Not committed; `.env.example` lists the keys. |
+
+## Conventions
+
+- One module per folder. Each folder has a `mod.rs` that lists its modules.
+- Marker comments (`// smeltery:mods`, `// smeltery:models`, `// smeltery:migrations`, `// smeltery:seeders`,
+  `// smeltery:commands`{% if web %}, `// smeltery:routes`{% endif %}{% if anvil %}, `// smeltery:channels`{% endif %}{% if search %}, `// smeltery:searchables`{% endif %}) show where generated lines go. New lines are added
+  directly above the marker. Keep the markers in place.
+- Prefer the generators (below) over writing these files by hand: they create the file and its registration
+  lines together. They never overwrite an existing file.
+- Config is typed Rust: add a field to a struct in `config/` and read it with `env("KEY", default)`. The real
+  environment overrides `.env`.
+- Secrets live only in `.env`, never in code or logs.
+
+## Database
+
+- `DATABASE_URL` in `.env` picks the database. Handlers take `db: Db`; elsewhere use `app.db()`.
+- **Models** (`app/models/<name>.rs`) are SeaORM entities: `pub struct Model` plus `pub use <name>::Model as
+  <Name>;` in `app/models/mod.rs`. `use smeltery::db::prelude::*;` brings in what they need. Queries:
+  `Post::all(&db)`, `Post::find(&db, id)`, `Post::find_or_404(&db, id)`, `Post::count(&db)`,
+  `Post::create(&db, post::ActiveModel { title: Set(…), ..Default::default() })`, `post.update(&db, |m| { … })`,
+  `post.delete(&db)`, and SeaORM filters on `Post::query()`. `Found<Post>` in a handler loads the record named by
+  the route's last parameter, or answers 404. `created_at` / `updated_at` are filled automatically.
+- **Migrations** (`database/migrations/m<timestamp>_<name>.rs`) implement `Migration` with `up` / `down` using the
+  schema builder (`schema.create("posts", |t| { t.id(); t.string("title"); t.timestamps(); })`) and are registered
+  in `database/migrations/mod.rs`, oldest first. Never edit a migration that has run; add a new one.
+- **Seeders** (`database/seeders/`) implement `Seeder`; {% if auth or not web %}`DatabaseSeeder` creates a demo user (`demo@example.com`,
+  password `password`) only when `APP_ENV` is `local` or `testing`.{% else %}`DatabaseSeeder` runs on `smeltery db:seed` and
+  is where development data goes.{% endif %} **Factories** (`database/factories/`)
+  implement `Factory` and fill a model with `Fake` values: `UserFactory.create(&db)`,
+  `UserFactory.count(3).create(&db)`.
+- Tests: `TestApp::new(build)` runs every migration on a fresh database (in-memory SQLite, or
+  `TEST_DATABASE_URL`); `app.db()` gives the handle for test data.
+
+{% if mold -%}
+{% if auth %}{% raw %}## Authentication, sessions and validation
+
+- **Temper** is the authentication: `build` in `bootstrap/app.rs` calls `.temper(app::providers::temper::temper())`,
+  which also registers `User` (`smeltery::auth::Authenticatable`) as the user model. `app/providers/temper.rs` turns
+  the features on (registration, password reset, e-mail verification, profile and password updates, two-factor
+  authentication) and names the Mold page of each `GET` route (`resources/views/auth/`). `app/actions/temper/` holds
+  the forms and what they do: `CreateNewUser`, `ResetUserPassword`, `UpdateUserPassword`,
+  `UpdateUserProfileInformation`, and the password rules once, in `password_rules.rs`. Temper's routes: `/login`,
+  `POST /logout`, `/register`, `/forgot-password`, `/reset-password/{token}`, `/email/verify…`,
+  `/user/confirm-password`, `PUT /user/profile-information`, `PUT /user/password`, `/two-factor-challenge` and
+  `/user/two-factor-…` (`smeltery route:list` lists them). The app's own: `/dashboard` and the settings pages
+  `/settings/profile`, `/settings/password` and `/settings/two-factor` (`app/controllers/settings.rs`,
+  `resources/views/settings/`). The password reset link is mailed (see Mail). A feature left out of `temper()` has
+  no routes; `.without_route("name")` leaves one route out, so the app declares its own there.
+- Protect a route with `.middleware("auth")` (guests are sent to `/login`); `.middleware("guest")` keeps logged-in
+  users out of the login and register pages; `.middleware("password.confirm")` asks for the password again
+  (`/user/confirm-password`, then valid for `AUTH_PASSWORD_TIMEOUT` seconds), as `/settings/profile` and
+  `/settings/two-factor` do. In a
+  handler, `auth: smeltery::auth::Auth` gives `auth.check()`, `auth.id()`, `auth.user::<User>().await?` and
+  `auth.logout()`. Passwords are stored with `smeltery::auth::hash_password` (argon2id), never in plain text.
+  `smeltery::auth::end_credentials(&app, user_id).await?` signs a user out everywhere (every open session on its
+  next request, and the remember-me cookies), through the `credentials_epoch` column of `users`.
+- Temper's form routes carry `throttle:6,1` (6 requests a minute per client on that route, counted in the cache; a
+  form then shows "Too many attempts") and `POST /login` and `POST /two-factor-challenge` carry `throttle:30,1`, on
+  top of the login budgets. Use the same alias on other routes that need a limit
+  (`throttle:<max>,<minutes>,<field>` names the field of the message). The forms read `email` trimmed and in lower
+  case; a new form that takes an account's address does the same with
+  `#[serde(deserialize_with = "smeltery::auth::deserialize_email")]`.
+- **Two-factor authentication**: a user turns it on at `/settings/two-factor` (scan the QR code, confirm with a
+  first code, keep the recovery codes); then logging in asks for a code from the authenticator app at
+  `/two-factor-challenge`, or a recovery code (each works once). The secret is stored encrypted with a key derived
+  from `APP_KEY`: after a new `APP_KEY` users enrol again (recovery codes still work).
+  `smeltery temper:two-factor-disable <email> --force` turns it off for a user who lost the device. Tests use
+  `smeltery::temper::testing` (`log_in`, `confirm_password`, `fake_clock`, `two_factor_code`, `enable_two_factor`).
+- **Email verification** is scaffolded and off: `User` implements `smeltery::auth::MustVerifyEmail` (column
+  `email_verified_at`), Temper serves `/email/verify` (the notice, `resources/views/auth/verify-email.mold.html`),
+  `/email/verify/{id}/{hash}` (the signed link from the mail, valid for `AUTH_VERIFICATION_EXPIRE` minutes) and
+  `POST /email/verification-notification` (send it again), and `/dashboard` has the `verified` middleware.
+  Uncomment `.verify_email::<app::models::User>()` in `bootstrap/app.rs` to turn it on: registration then mails the
+  link and `verified` sends unverified users to `/email/verify`. Until then `verified` lets every signed-in user
+  through.
+{% endraw %}{% else %}{% raw %}## Sessions and validation
+
+- **Authentication** is off in this app (it was created without the `temper` building block). To turn it on, copy
+  from an app made with `smeltery new <name>` (authentication on):
+  1. `app/providers/temper.rs` (with `pub mod temper;` in `app/providers/mod.rs`), `app/actions/` (with
+     `pub mod actions;` in `app/mod.rs`), `app/controllers/dashboard.rs` and `app/controllers/settings.rs` (with
+     their `pub mod` lines in `app/controllers/mod.rs`), `resources/views/auth/`, `resources/views/settings/`,
+     `resources/views/dashboard.mold.html`, the routes in `routes/web.rs`, the login links of
+     `resources/views/layouts/app.mold.html`, and the `password_reset_tokens` and
+     `add_two_factor_columns_to_users_table` migrations.
+  2. On `User`: the `email_verified_at` field (a new migration adds the column) and the four `two_factor_*` fields,
+     `impl smeltery::auth::MustVerifyEmail` and `impl smeltery::temper::TwoFactorAuthenticatable`.
+  3. In `bootstrap/app.rs`: `use smeltery::temper::TemperExt as _;` and `.temper(app::providers::temper::temper())`
+     in `build` (it registers the `auth`, `guest`, `verified` and `password.confirm` middleware aliases).
+  4. The rest from the same app: the demo user of `database/seeders/database_seeder.rs` (created under `APP_ENV`
+     `local` or `testing` only), `AUTH_VERIFICATION_EXPIRE=60` and `AUTH_PASSWORD_TIMEOUT=10800` in `.env` and
+     `.env.example`, and the authentication tests of `tests/http.rs`.
+{% endraw %}{% endif %}{% raw %}- **Sessions** (`session: smeltery::session::Session`): `get`, `insert`, `remove`, `flash("status", "…")` for the
+  next request. `SESSION_DRIVER=database` (this app's `.env`: the `sessions` table of its migrations, so a
+  session can be ended on the server), `cookie` (encrypted cookie) or `file`
+  (`storage/framework/sessions/`); `SESSION_LIFETIME` in minutes. Sessions and cookies are encrypted with `APP_KEY`.
+- **CSRF**: every `POST`/`PUT`/`PATCH`/`DELETE` web form needs `@csrf` inside the `<form>`; `/api` routes are exempt.
+  Use `@method("PUT")` / `@method("DELETE")` for those verbs in HTML forms.
+- **Validation**: a form struct derives `Deserialize` and `smeltery::Validate`, with rules per field
+  (`#[validate(required, email, max = 255, unique(table = "users", column = "email"))]`); the handler takes
+  `Valid(form): Valid<TheForm>`. On failure the browser is sent back with the errors and old input, shown in Mold
+  with `@error("field") {{ message }} @enderror` and `{{ old("field") }}`; JSON requests get a 422 with the errors.
+  Empty fields count as missing, so `Option` fields become `None`.
+- Templates show flash messages with `session("status")` (the layout already does for `status` and `error`){% endraw %}{% if auth %}{% raw %} and
+  login state with `@auth … @endauth` / `@guest … @endguest`{% endraw %}{% endif %}.
+
+{% endif -%}
+{% if alloy -%}
+{% if temper -%}
+## Authentication, sessions and validation
+
+- **Temper** is the authentication: `build` in `bootstrap/app.rs` calls `.temper(app::providers::temper::temper())`,
+  which also registers `User` (`smeltery::auth::Authenticatable`) as the user model. `app/providers/temper.rs` turns
+  the features on (registration, password reset, e-mail verification, profile and password updates, two-factor
+  authentication), names the {{ kit_name }} page of each `GET` route (`alloy::render("…")`, pages in
+  `resources/js/pages/auth/`) and overrides one answer: logging out calls `alloy::clear_history(ctx.session())`.
+  `app/actions/temper/` holds the forms and what they do: `CreateNewUser`, `ResetUserPassword`,
+  `UpdateUserPassword`, `UpdateUserProfileInformation`, and the password rules once, in `password_rules.rs`.
+  Temper's routes: `/login`, `POST /logout`, `/register`, `/forgot-password`, `/reset-password/{token}`,
+  `/email/verify…`, `/user/confirm-password`, `PUT /user/profile-information`, `PUT /user/password`,
+  `/two-factor-challenge` and `/user/two-factor-…` (`smeltery route:list` lists them). The app's own: `/dashboard`
+  and the settings pages `/settings/profile`, `/settings/password` and `/settings/two-factor`
+  (`app/controllers/settings.rs`, `resources/js/pages/settings/`). The password reset link is mailed (see Mail).
+  `bootstrap/app.rs` turns on `encrypt_history()`, so after logging out the back button cannot show a signed-in page
+  (the browser encrypts its history only over HTTPS or on `127.0.0.1` / `localhost`). A feature left out of
+  `temper()` has no routes; `.without_route("name")` leaves one route out, so the app declares its own there.
+- Protect a route with `.middleware("auth")` (guests are sent to `/login`); `.middleware("guest")` keeps logged-in
+  users out of the login and register pages; `.middleware("password.confirm")` asks for the password again
+  (`/user/confirm-password`, then valid for `AUTH_PASSWORD_TIMEOUT` seconds), as `/settings/profile` and
+  `/settings/two-factor` do. In a
+  handler, `auth: smeltery::auth::Auth` gives `auth.check()`, `auth.id()`, `auth.user::<User>().await?` and
+  `auth.logout()`. Passwords are stored with `smeltery::auth::hash_password` (argon2id), never in plain text.
+  `smeltery::auth::end_credentials(&app, user_id).await?` signs a user out everywhere (every open session on its
+  next request, and the remember-me cookies), through the `credentials_epoch` column of `users`.
+- Temper's form routes carry `throttle:6,1` (6 requests a minute per client on that route, counted in the cache; a
+  form then shows "Too many attempts") and `POST /login` and `POST /two-factor-challenge` carry `throttle:30,1`, on
+  top of the login budgets. Use the same alias on other routes that need a limit
+  (`throttle:<max>,<minutes>,<field>` names the field of the message). The forms read `email` trimmed and in lower
+  case; a new form that takes an account's address does the same with
+  `#[serde(deserialize_with = "smeltery::auth::deserialize_email")]`.
+- Pages see the signed-in user as `usePage().props.auth.user`: the `SharedUser` allow-list in
+  `app/providers/alloy.rs` (`id`, `name`, `email`, `email_verified`, `two_factor_enabled`), never the `User` model.
+- **Two-factor authentication**: a user turns it on at `/settings/two-factor` (scan the QR code, confirm with a
+  first code, keep the recovery codes); then logging in asks for a code from the authenticator app at
+  `/two-factor-challenge`, or a recovery code (each works once). The page fetches the QR code and the key from
+  `/user/two-factor-qr-code` and `/user/two-factor-secret-key` while enrolling (never as props, so they stay out of
+  the browser's history) and shows the QR code as an `<img>`; the recovery codes arrive once as the
+  `recovery_codes` prop. The secret is stored encrypted with a key derived from `APP_KEY`: after a new `APP_KEY`
+  users enrol again (recovery codes still work). `smeltery temper:two-factor-disable <email> --force` turns it off
+  for a user who lost the device. Tests use `smeltery::temper::testing` (`confirm_password`, `fake_clock`,
+  `two_factor_code`, `enable_two_factor`).
+- **Email verification** is scaffolded and off: `User` implements `smeltery::auth::MustVerifyEmail` (column
+  `email_verified_at`), Temper serves `/email/verify` (the notice,
+  `resources/js/pages/{{ pages.verify_email }}.{{ page_ext }}`), `/email/verify/{id}/{hash}` (the signed link from
+  the mail, valid for `AUTH_VERIFICATION_EXPIRE` minutes) and `POST /email/verification-notification` (send it
+  again), and `/dashboard` has the `verified` middleware. Uncomment `.verify_email::<app::models::User>()` in
+  `bootstrap/app.rs` to turn it on: registration then mails the link and `verified` sends unverified users to
+  `/email/verify`. Until then `verified` lets every signed-in user through.
+{% else -%}
+## Sessions and validation
+
+- **Authentication** is off in this app (it was created without the `temper` building block). To turn it on, copy
+  from an app made with `smeltery new <name> --frontend {{ frontend }}` (authentication on):
+  1. `app/providers/temper.rs` (with `pub mod temper;` in `app/providers/mod.rs`), `app/actions/` (with
+     `pub mod actions;` in `app/mod.rs`), `app/controllers/dashboard.rs` and `app/controllers/settings.rs` (with
+     their `pub mod` lines in `app/controllers/mod.rs`), `resources/js/pages/auth/`, `resources/js/pages/settings/`,
+     `resources/js/pages/{{ pages.dashboard }}.{{ page_ext }}`, `resources/js/layouts/` and `resources/js/components/`,
+     `app/providers/alloy.rs` (the shared `auth.user`) and `resources/js/types/global.d.ts`, the routes in
+     `routes/web.rs`, and the `password_reset_tokens` and `add_two_factor_columns_to_users_table` migrations.
+  2. On `User`: the `email_verified_at` field (a new migration adds the column) and the four `two_factor_*` fields,
+     `impl smeltery::auth::MustVerifyEmail` and `impl smeltery::temper::TwoFactorAuthenticatable`.
+  3. In `bootstrap/app.rs`: `use smeltery::temper::TemperExt as _;`, `.temper(app::providers::temper::temper())` in
+     `build` (it registers the `auth`, `guest`, `verified` and `password.confirm` middleware aliases) and
+     `.encrypt_history()` on the `Alloy` builder.
+  4. The rest from the same app: the demo user of `database/seeders/database_seeder.rs` (created under `APP_ENV`
+     `local` or `testing` only), `AUTH_VERIFICATION_EXPIRE=60` and `AUTH_PASSWORD_TIMEOUT=10800` in `.env` and
+     `.env.example`, and the authentication tests of `tests/http.rs`.
+{% endif -%}
+- **Sessions** (`session: smeltery::session::Session`): `get`, `insert`, `remove`, `flash("status", "…")` for the
+  next request. `SESSION_DRIVER=database` (this app's `.env`: the `sessions` table of its migrations, so a
+  session can be ended on the server), `cookie` (encrypted cookie) or `file`
+  (`storage/framework/sessions/`); `SESSION_LIFETIME` in minutes. Sessions and cookies are encrypted with `APP_KEY`.
+- **Flash**: every value flashed with a key that does not start with `_` reaches the next page as `usePage().flash`
+  (the layout shows `flash.status` and `flash.error`). It is sent to the browser: never flash secrets.
+- **CSRF**: nothing to add to forms. The web stack sets an `XSRF-TOKEN` cookie and Inertia's client sends it back as
+  the `X-XSRF-TOKEN` header on every request; `/api` routes are exempt. An expired token sends the user back with
+  `flash.error`.
+- **Validation**: a form struct derives `Deserialize` and `smeltery::Validate`, with rules per field
+  (`#[validate(required, email, max = 255, unique(table = "users", column = "email"))]`); the handler takes
+  `Valid(form): Valid<TheForm>`. `useForm` posts JSON (multipart/form-data when a file is in it); on failure the
+  page comes back with the messages in `form.errors.field` (the `errors` prop). A handler can fail a field itself
+  with `Err(smeltery::Error::validation("email", "…"))`. Empty fields count as missing, so `Option` fields become
+  `None`.
+
+{% endif -%}
+{% if agents -%}
+## Agents, jobs and the schedule (Watchfire)
+
+- `app/agents/mod.rs` registers everything in `register(w: &mut Watchfire)` (`use smeltery::watchfire::prelude::*;`).
+  `bootstrap/app.rs` wires it with `.agents(app::agents::register)`.
+- **Agents** (`app/agents/<name>.rs`, `smeltery make:agent Name`) implement `Agent`: `name`, `config`
+  (`AgentConfig::default().restart(Restart::OnFailure).backoff(1.secs()..=60.secs()).heartbeat_timeout(2.mins())`)
+  and `async fn run(&mut self, ctx: AgentCtx)`. Loop with `let mut ticker = ctx.interval(30.secs()); while
+  ticker.tick().await { … }`: `tick()` sends the heartbeat and returns false once the agent is stopped. Register with
+  `w.agent(name::Name::default());`. Closures work too: `w.every(30.secs(), "name", |ctx| async move { Ok(()) })`.
+- **Jobs** (`app/jobs/<name>.rs`, `smeltery make:job Name`) are `Serialize + Deserialize` structs implementing
+  `Job` (`const NAME`, `async fn handle(&self, ctx: JobCtx)`), registered with `w.job::<…>()` in
+  `app/agents/mod.rs` and queued with `MyJob { … }.dispatch(&app).await?` (or `dispatch_later(&app, 10.mins())`).
+  Failed jobs are retried with backoff (`max_attempts`, default 3), then moved to the dead letters.
+- **Schedule**: `w.schedule().job(…).daily_at("03:00")`, `.call("name", |ctx| async move { … }).every(5.mins())`,
+  `.cron("0 3 * * *")`. Times are UTC.
+- In an agent, `ctx.db()`, `ctx.http()` (rate-limited client with timeouts and retries), `ctx.checkpoint(&state)` /
+  `ctx.checkpoint_get()` (state that survives restarts), `ctx.log()`.
+- Agent runs, checkpoints and the job queue live in the `watchfire_*` tables (migration
+  `create_watchfire_tables`). {% if web %}`smeltery serve` runs the web server and the agents together.{% else %}`smeltery work` runs the agents, the queue workers and the
+  schedule.{% endif %}
+{%- if web %}
+- The dashboard at `/_watchfire` shows every agent (state, heartbeat, restarts, recent runs) with start / stop /
+  pause / resume / restart buttons. Under `APP_ENV=local` it is open to requests from this machine; otherwise only
+  to signed-in users that `w.dashboard_gate(|auth, app| async move { Ok(…) })` in `app/agents/mod.rs` admits
+  (nobody without a gate). `WATCHFIRE_DASHBOARD=auth` needs the gate locally too; `off` hides it.{% if not auth %}
+  This app has no sign-in, so outside local development the dashboard needs authentication (`.temper(…)`, see
+  above) and a gate first (or `WATCHFIRE_DASHBOARD=off`).{% endif %}
+  `smeltery serve --no-agents` (or `WATCHFIRE_IN_SERVE=false`) serves the web only, next to a `work` process; its
+  dashboard then shows and controls the agents running in `work` (through the database).
+{%- else %}
+- `smeltery work` serves the Watchfire API on `WATCHFIRE_API_ADDR` (`127.0.0.1:8001` in `.env`); the `agents:*`
+  commands reach the running worker there, authenticated with a token derived from `APP_KEY`.
+{%- endif %}
+- `WATCHFIRE_ALERT_WEBHOOK` receives a JSON POST when an agent fails for good or stalls.
+- LLM helpers (a provider trait, a fake provider for tests, an Anthropic client, a tool-calling agent loop with a
+  token budget) come with the `llm` feature of `smeltery`.
+
+{% endif -%}
+{% if search -%}
+## Search (Prospect)
+
+- `bootstrap/app.rs` installs Prospect with `.prospect(app::providers::search::register)`; `app/providers/search.rs`
+  registers the searchable models above `// smeltery:searchables`. `PROSPECT_DRIVER=database` (in `.env`) uses the
+  database's own full-text index (SQLite FTS5, PostgreSQL `tsvector`, MySQL `FULLTEXT`), kept current by the
+  database itself, raw SQL included.
+- `smeltery make:model Post title:string body:text --searchable` (with `-m` / `--all`: the index goes into the
+  create-table migration; without: a separate `add_search_index_to_posts_table` migration) writes `impl Searchable`
+  (every `string` / `text` field searched, the first with `Weight::A`; `foreign` fields as filters) and registers
+  the model; with `-r` / `--all` the list page searches (`?q=`, `?page=`, the label highlighted) behind
+  `throttle:60,1`.
+- In a handler: `Post::search(&prospect, &q)` (`prospect: smeltery::prospect::Prospect`,
+  `use smeltery::prospect::Searchable as _`), then `.within(…)` for a `scoped_by` model, `.where_eq(…)` on declared
+  filters, `.highlight([...])`, `.paginate(page)` → `Page<Hit<Post>>`. User text is never search syntax.
+- A search finds every record the model's spec allows: scope private records (`i.scoped_by`, `i.only_when`,
+  `.where_eq`). Highlights are text segments (`{"text", "matched"}`): render them escaped, wrap matches in `<mark>`.
+- `impl Searchable` and the migration's `SearchIndex` must name the same columns and weights; change both with a
+  migration that calls `SearchIndex::on(…).rebuild(schema)`. `smeltery prospect:status` shows each index.
+
+{% endif -%}
+{% if hallmark -%}
+## API tokens (Hallmark)
+
+- `bootstrap/app.rs` installs Hallmark with `.hallmark(Hallmark::new())` (after Temper's user model): the guard
+  `hallmark`, the middleware `abilities:` / `ability:`, the `Tokens` service and the console command
+  `hallmark:prune-expired`. The table is `personal_access_tokens` (migration `create_personal_access_tokens_table`).
+- `routes/api.rs`: `POST /api/tokens` (`throttle:10,1`; `email`, `password`, `device_name`, and `code` when the
+  account has two-factor authentication on) issues a token through `smeltery::hallmark::issue_for_credentials` and
+  answers 201 `{"token":"smt_…","token_type":"Bearer",…}`; `DELETE /api/tokens/current` signs the presenting token out;
+  `GET /api/user` (with `verified`) shows its user. The controllers are in `app/controllers/api/`. With
+  `.verify_email` on, `verified` answers 403 to tokens of unverified addresses: add it to API routes that need a
+  verified address.
+- API routes use `.middleware("auth:hallmark")`, then `abilities:a,b` (every listed ability) or `ability:a,b` (at
+  least one). Handlers take `who: smeltery::auth::Authenticated` (`who.user_id`, `who.can("…")`) or
+  `token: smeltery::hallmark::CurrentToken`. Abilities limit tokens, not users: handlers still check the record.
+- Tokens travel only in `Authorization: Bearer smt_…` (never a query string, cookie or form field); only their hash
+  is stored; never log, flash or store a plain token. A password change ends the user's tokens.
+- `HALLMARK_TOKEN_EXPIRATION` (days, 365), `HALLMARK_SPA` (a JavaScript frontend on this app's origin calls the API
+  with its session) and `HALLMARK_STATEFUL` are commented in `.env`.{% if agents %} `app/agents/mod.rs` schedules
+  `hallmark-prune` daily (expired tokens leave the table).{% endif %}
+- Tests: `smeltery::hallmark::testing::acting_as(&app, &user, &["…"])` sends a real token with every following
+  request; `tests/api_tokens.rs` creates its users with `UserFactory`.
+
+{% endif -%}
+{% if anvil -%}
+## Broadcasting (Anvil)
+
+- `bootstrap/app.rs` installs Anvil with `.anvil(routes::channels::channels)`: a WebSocket endpoint on the app's own
+  port (`/app/<ANVIL_APP_KEY>`, the Pusher protocol 7){% if auth %}, `POST /broadcasting/auth` (session and CSRF) for private
+  channels{% endif %}, `POST /api/broadcasting/auth` for clients with a bearer token{% if not hallmark %} (it answers 404 until the
+  app has a bearer guard such as Hallmark's API tokens){% endif %}, and the `Anvil` service.
+- `routes/channels.rs` declares the channels: `c.public("announcements")` (anyone with the app key may subscribe, so
+  only public data goes there){% if auth %} and `c.private("users.{user}", …)`, which lets only that user join
+  `private-users.<id>`; every private channel checks that the signed-in user may see the record{% endif %}. Add channels above
+  `// smeltery:channels`.
+- Events are structs in `app/events/` with `#[derive(Serialize, BroadcastEvent)]` and
+  `#[broadcast(public = "…")]`{% if auth %} / `#[broadcast(private = "users.{user_id}")]`{% endif %}; `app/events/announcement_posted.rs`
+  is the example. Send with `anvil.send(&event).await?` (a handler takes `anvil: smeltery::anvil::Anvil`; jobs and
+  agents use `smeltery::anvil::Anvil::of(&app)`); clients receive the JSON under `App\Events\<TypeName>`. Send after a
+  transaction commits.
+- The key and the signing secret are derived from `APP_KEY` (the `ANVIL_*` lines in `.env` are commented). Set
+  `ANVIL_APP_KEY` when clients are built with it, because a new `APP_KEY` changes the derived key.
+  `PUBSUB_DRIVER` carries events between processes (`serve --no-agents` and `work`); the `pubsub_messages`
+  migration is there for its `database` driver.
+{%- if alloy %}
+- The {{ kit_name }} pages use Echo (`{% if react %}@laravel/echo-react{% else %}@laravel/echo-vue{% endif %}`, `laravel-echo`, `pusher-js`, pinned in
+  `package.json`). `resources/js/echo.ts` configures it once (`startEcho`, called from `{{ entry }}` with the shared prop
+  `app.anvil_key`): the socket goes to the page's own host and port, private and presence channels are authorized at
+  `/broadcasting/auth` with the session cookie and the `XSRF-TOKEN` cookie as `X-XSRF-TOKEN`, and Inertia's requests
+  carry `X-Socket-ID` (for `.except(socket)`). In a component: `useEchoPublic("announcements", "AnnouncementPosted",
+  cb)`, `useEcho("users." + id, "UserNotified", cb)` (private), `echo().join("dashboard").here(…).joining(…).leaving(…)`
+  (presence). Examples: `resources/js/components/{% if react %}announcements.tsx{% else %}AnnouncementsCard.vue{% endif %}` on the welcome page{% if auth %}, and
+  `{% if react %}live-notifications.tsx{% else %}LiveNotifications.vue{% endif %}` on the dashboard (the private channel, "Notify me" → `POST /notify-me`, and how many
+  people are online through `presence-dashboard`, plus the viewer's own name; the channel shares member ids only, and
+  `routes/channels.rs` shows the one line that shares names; its members' tables come from the `create_presence_tables`
+  migration){% endif %}.
+{%- else %}
+- Mold pages listen without JavaScript: a `#[spark(stream)]` component's method marked
+  `#[on("anvil:<channel>", "App\\Events\\<Event>")]` runs when that event is broadcast (`smeltery make:spark Name
+  --listen <channel> --event <Event>` writes one). Examples: `app/sparks/announcements.rs` on the home page{% if auth %}, and
+  `app/sparks/notifications.rs` on the dashboard (the private `private-users.{user_id}`; its "Notify me" action sends
+  the event){% endif %}. Other clients (mobile apps, scripts) use `pusher-js` or a Pusher client library with the key.
+{%- endif %}
+- Tests: `smeltery::anvil::testing` (`AnvilSpy`, `TestSocket`{% if auth %}, `authorize`{% endif %}); see `tests/broadcasting.rs`.
+
+{% endif -%}
+## Cache
+
+- Take `cache: smeltery::cache::Cache` as a handler argument (or `app.cache()`{% if agents %}; `ctx.cache()` in agents
+  and jobs{% endif %}). Values are any `Serialize`/`Deserialize` type: `cache.get::<T>("key")`,
+  `put("key", &value, Duration::from_secs(60))`, `forever`, `add` (only when absent; atomic), `forget`, `has`, `pull`,
+  `increment("hits", 1)` / `decrement`, `flush()`, and `cache.remember("key", ttl, || async { Ok(value) }).await?`
+  (computes on a miss).
+- Locks: `let lock = cache.lock("name", Duration::from_secs(60)); if lock.get().await? { …; lock.release().await?; }`
+  (`lock.block(timeout)` waits for it). On a shared store they exclude every process (`serve` and `work`).
+- `CACHE_STORE` picks the default store: `database` (the `cache` / `cache_locks` tables, migration
+  `create_cache_tables`), `redis` (`REDIS_URL`, feature `redis` of `smeltery`), `memcached` (`MEMCACHED_SERVERS`,
+  feature `memcached`), `file` (`storage/framework/cache/`), `memory` (this process only), `array` or `null`.
+  `cache.store("redis")?` uses another store. Redis is the recommended production store (shared by every process
+  and machine, native atomic operations and locks); memcached is the second choice (its client is synchronous and
+  runs on blocking threads). `CACHE_PREFIX` goes in front of every key.
+- Tests use the `array` store (a cache per `TestApp`); `smeltery cache:clear [store]` empties a store.
+
+## Mail
+
+- A mail is a struct in `app/mail/<name>.rs` with `#[derive(Mold)]` and `#[mold("mail/<name>")]` (its HTML body is
+  `resources/views/mail/<name>.mold.html`; the fields are its variables) implementing `Mailable`
+  (`fn envelope(&self) -> Envelope { Envelope::new().to(…).subject(…) }`). `smeltery make:mail Name` creates both.
+- Send with a `mailer: smeltery::mail::Mailer` handler argument (or `Mailer::of(&app)?`):
+  `mailer.send(Welcome { … }).await?`{% if agents %}; `mailer.queue(…).await?` sends it from the Watchfire queue{% endif %}.
+  `bootstrap/app.rs` installs mail with `.mail()`.
+- `MAIL_MAILER` picks the transport: `log` (default: the mail is written to the log), `smtp` (`MAIL_HOST`,
+  `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION=starttls|tls|none`, `MAIL_TIMEOUT`) or `fake`.
+  The sender is `MAIL_FROM_ADDRESS` / `MAIL_FROM_NAME`.{% if auth %} Password reset links are mailed as
+  `smeltery::mail::ResetPassword`.{% endif %}{% if agents %} `WATCHFIRE_ALERT_MAIL` receives agent alerts by mail.{% endif %}
+- Tests run with `APP_ENV=testing`, where mail goes to a fake mailbox:
+  `Mailer::of(app.app()).unwrap().mailbox().unwrap().assert_sent::<Welcome>(|mail, email| …)`.
+
+## Console commands
+
+`app/commands/<name>.rs` implement `smeltery::console::Command` (`name`, `about`, `async fn run`) and are registered in
+`app/commands/mod.rs`. Run them with `smeltery <name>`; `smeltery help` lists every command.
+
+{% if alloy -%}
+## Pages ({{ kit_name }} through Alloy)
+
+- A controller returns a page: `alloy::render("{{ pages.welcome }}").with("stats", &stats)` (`use smeltery::alloy::{self,
+  Page};`, the handler returns `Page` or `smeltery::Result<Page>`). The component name is the file under
+  `resources/js/pages/` without its extension: `{{ pages.welcome }}` is `pages/{{ pages.welcome }}.{{ page_ext }}`{% if react %} (React pages are lowercase paths:
+  `auth/login`){% else %} (Vue pages are PascalCase: `auth/Login`){% endif %}. A typed alternative:
+  `#[derive(serde::Serialize, smeltery::Alloy)] #[alloy("{{ pages.welcome }}")] pub struct Welcome { … }`, returned from the handler.
+- The first visit gets HTML (`resources/views/app.mold.html` with the page inside); every later visit (a `<Link>`,
+  `router.visit`, a form) gets the page as JSON. Rust edits restart the app; `resources/js/` edits are hot-reloaded
+  by Vite.
+- Prop kinds: `.with(key, value)` (every visit), `.with_lazy(key, || async { … })` (computed only when sent),
+  `.optional(key, …)` (only when a partial reload asks: `router.reload({ only: ['key'] })`), `.defer(key, …)` (loaded
+  by the client right after the page; `<Deferred data="key">`), `.merge` / `.prepend` / `.deep_merge` (combined
+  with the client's data), `.always(key, value)` (also on partial reloads that do not name it). See
+  `app/controllers/home.rs` (optional){% if auth %} and `app/controllers/dashboard.rs` (deferred){% endif %}.
+- `app/providers/alloy.rs` shares props with every page (`app`{% if auth %}, `auth.user`{% endif %}); they are typed in
+  `resources/js/types/global.d.ts` and read with `usePage().props`.
+- **Every prop is public**: it is in the page's HTML and JSON. Never pass a model with secrets (password hashes,
+  tokens) or session values; send a struct with the fields the page needs.
+- `alloy::location(url)` leaves the app (a full page load, for OAuth or downloads; never with user input);
+  `Redirect::to` and `Back` work as usual. A link to a Mold page (the Watchfire dashboard) becomes a full page load.
+- Tests: `use smeltery::alloy::testing::{AlloyAssertions as _, AlloyRequests as _, assert_page_file_exists};` then
+  `app.get_alloy("/").assert_component("{{ pages.welcome }}").assert_prop("app.name", "{{ title }}")`,
+  `app.reload_alloy("/", "{{ pages.welcome }}", &["forge"])` (a partial reload), `app.post_alloy("/posts", &json)` (a `useForm`
+  post) and `assert_page_file_exists("{{ pages.welcome }}")`. `APP_ENV=testing` renders pages without the Vite assets, so
+  `cargo test` needs no Node.js. See `tests/http.rs`.
+- Generators write {{ kit_name }} pages: `smeltery make:page Name` (a page, its controller and route),
+  `smeltery make:controller Name` and `smeltery make:model Post title:string --all` (a resource controller and the
+  pages `posts/{% if react %}index`, `create`, `show`, `edit{% else %}Index`, `Create`, `Show`, `Edit{% endif %}` with `useForm`).
+- Sparks are not used for the app's pages.{% if agents %} The app installs them for the Watchfire dashboard's live
+  panels (`.sparks(|_| {})` in `bootstrap/app.rs`).{% endif %}
+
+{% endif -%}
+{% if mold -%}
+{% raw %}## Views (Mold)
+
+- A page is a struct with `#[derive(smeltery::Mold)]` and `#[mold("name")]`, rendering
+  `resources/views/<name>.mold.html`. Its fields are the template's variables. A handler returns the struct (or
+  `smeltery::Result<TheStruct>`). See `app/controllers/home.rs` and `resources/views/home.mold.html`.
+- Syntax: `{{ expr }}` (escaped), `{!! expr !!}` (raw), `@if`/`@elseif`/`@else`/`@endif`, `@for(x in items)` …
+  `@empty` … `@endfor`, `@extends("layouts/app")` with `@section`/`@yield`, `@include("partials/x")`, and
+  components `<x-card title="…">body</x-card>` from `resources/views/components/card.mold.html` (the body is
+  `{{ slot }}`).
+- `{{ }}` escapes for HTML: right for text and quoted attribute values. A value inside JavaScript (`x-data`,
+  `x-on:click`, `@click`, the arguments of `wire:click`) is `{{ value | json }}` without quotes around it; inside
+  `<script>` it is `{!! value | json !!}`. A link from data is `{{ link | url }}`. Quote every attribute value.
+- Debug builds read the templates at runtime, so edits show on the next request. Release builds compile them into
+  the binary. A template variable without a matching field is a compile error naming the file and line.{% endraw %}
+
+{% endif -%}
+{% if mold -%}
+{% raw %}## Sparks (live components)
+
+- A Spark is a struct in `app/sparks/<name>.rs` with `#[derive(Serialize, Deserialize, Default, Spark)]` (its state)
+  and a view `resources/views/sparks/<name>.mold.html`; `smeltery make:spark Name` creates both and registers the
+  Spark in `app/sparks/mod.rs` (`s.add::<name::Name>();`). `bootstrap/app.rs` wires them with
+  `.sparks(app::sparks::register)`, and the layout loads the runtime with `@sparksScripts` in `<head>`. See
+  `app/sparks/counter.rs`, shown on the home page.
+- A page shows a Spark with `@spark("counter", { start: 0 })`. Props named like a field set it; every prop is
+  readable with `ctx.prop("start")` in `mount`.
+- **Actions** are the `pub async fn` methods (taking `&mut self`) of the `#[actions] impl` block; nothing else can be
+  called from the page. They may take `ctx: &mut SparkCtx` and then parameters (`wire:click="add(10)"`). Hooks:
+  `mount` (first render) and `updated(ctx, field)` (after a `wire:model` change). `#[guard(auth)]` /
+  `#[guard(guest)]` restrict an action. `SparkCtx` gives `db()`, `auth()`, `user_id()`, `session()`, `prop()`,
+  `redirect(url)` (a path on this site or an `APP_URL` address), `redirect_away(url)` (another site, `http(s)://`),
+  `dispatch(event, payload)`, `flash(key, value)` and `validate(self)`.
+- Only `#[spark(model)]` fields accept values from the page, and they take no objects; a struct field the page edits
+  is `#[spark(model(fields = "title, body"))]` (`wire:model="form.title"`). The state travels signed (with `APP_KEY`)
+  in the page and bound to the visitor's session and user: readable, not changeable, so never put secrets in a
+  Spark's fields. A snapshot can be sent again within its session, so every action re-checks permissions with
+  `ctx.auth()` and the database. Limits are set in `app/sparks/mod.rs`: `s.max_calls(n)`, `s.upload_quota(…)`.
+- In the view: `wire:click="action"`, `wire:submit="save"`, `wire:model="field"` (`.live`, `.debounce.300ms`,
+  `.blur`, `.change`), `wire:keydown.enter="save"`, `wire:loading` (`.remove`, `.class="…"`, `.class.remove="…"`
+  that keeps the element's space, `.attr="disabled"`), `wire:target="save"`, `wire:poll.5s="action"`,
+  `wire:key="…"`, `wire:click="$refresh"`; `@error("field")` shows validation messages. A value from data in an
+  action's arguments goes through `json`: `wire:click="remove({{ item.id | json }})"`.
+- Tests: `smeltery::sparks::testing::TestSpark::from_html(&app.get("/").text(), "counter")`, then
+  `.set("step", 5)`, `.call("increment", smeltery::json!([])).send(&app)`, and check `.data()` / `.html()`.
+{% endraw %}
+{% endif -%}
+{% if alpine -%}
+## Alpine.js
+
+- Alpine.js {{ alpine_version }} is `public/assets/js/alpine.min.js` (MIT licence in its header); the layout loads it
+  with `<script defer>` after `@sparksScripts`. Use it for behaviour that stays in the browser (`x-data`, `x-show`,
+  `x-on:click`, `:class`) and Sparks for state the server owns. The welcome page has an example.
+- Inside a Spark, Alpine code reaches it as `$spark`: `$spark.count` reads a field, `$spark.increment()` calls an
+  action, `$spark.$entangle('open')` binds an `x-data` property to a field (see the Sparks part of the Smeltery
+  guide). `resources/views/sparks/counter.mold.html` uses it.
+{% raw %}- Pass server values into Alpine with the `json` filter, never between quotes:
+  `x-data="{ name: {{ name | json }} }"`, not `'{{ name }}'`. Inside a Spark prefer `$spark.field`.{% endraw %}
+- Write events as `x-on:click`, not `@click`: Mold leaves `@` words that are not Mold directives as they are, but an
+  event named like a directive (`@error`) is read as Mold.
+
+{% endif -%}
+## AI-agent support (Bellows)
+
+{% if bellows_mcp -%}
+- `.mcp.json` registers the app's MCP server: `smeltery bellows:mcp` (it runs inside the app, over stdin / stdout).
+  Its tools: `route_list` (routes), `models` (models with their columns), `db_schema` (tables, columns, indexes),
+  `config_keys` (setting names, never values), `last_errors` (ERROR lines from the log file, `LOG_FILE`),
+  `docs_search` (the Smeltery guide, this file and `.bellows/`), `run_generator` (`smeltery make:*`), `run_tests`
+  (`cargo test` with a time limit){% if agents %}, `agents_list` and `agent_control` (the running app's agents){% endif %}.
+{% else -%}
+- `smeltery bellows:install --mcp` adds `.mcp.json`, which registers the app's MCP server (`smeltery bellows:mcp`:
+  routes, models, schema, config key names, errors, docs, generators and tests for coding agents).
+{% endif -%}
+{% if bellows_guidelines -%}
+- `.bellows/guidelines.md` lists the conventions to follow.
+{% endif -%}
+{% if bellows_skills -%}
+- `.bellows/skills/` has step-by-step guides: {% if web %}`crud-resource.md`, {% if auth %}`auth-route.md`, {% endif %}{% if alloy %}`alloy-page.md`{% else %}`spark.md`{% endif %}, {% endif %}`migration.md`, `mail.md`{% if agents %}, `agent.md`{% endif %}{% if hallmark %}, `api-token.md`{% endif %}{% if anvil %}, `broadcast.md`{% endif %}{% if search %}, `search.md`{% endif %}.
+{% endif -%}
+- `smeltery bellows:install [--mcp] [--skills] [--guidelines] [--all]` adds the parts that are missing; it never
+  overwrites a file.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `smeltery serve` | Builds and runs the app{% if not web %} (`work`){% endif %}, restarting it when Rust code or `Cargo.toml` changes.{% if mold %} Rebuilds the CSS with Tailwind in watch mode when Tailwind is installed. |
+| `smeltery tailwind:install` | Downloads the pinned Tailwind CSS standalone binary into the per-user Smeltery folder, where `serve` and `build` find it.{% elif alloy %} Starts the Vite dev server (`node node_modules/vite/bin/vite.js`, on `127.0.0.1:5173`) next to it; run `npm install` first.{% endif %} |
+| `smeltery test` | Runs `cargo test`; extra arguments are passed through. |
+| `smeltery build` | {% if mold %}Builds the CSS with Tailwind (when it is installed) and the release binary.{% elif alloy %}Runs `npm run build` (after `npm ci` / `npm install` when `node_modules/` is missing) into `public/build/`, then builds the release binary.{% else %}Builds the release binary.{% endif %} |
+| `smeltery key:generate` | Writes a new `APP_KEY` into `.env` (`--show` prints it). With `APP_ENV=production` an existing key is kept unless `--force` is given. |
+{% if web -%}
+| `smeltery storage:link` | Links `public/storage` to `storage/app/public`. |
+{% endif -%}
+| `smeltery migrate` | Runs the pending migrations. `migrate:rollback [--step N]`, `migrate:fresh [--seed]` and `migrate:status` manage them. |
+| `smeltery db:seed [--class Name]` | Runs the seeders. |
+| `smeltery cache:clear [store]` | Removes every entry of the default cache store (or the named one). |
+{%- if search %}
+| `smeltery prospect:status` | Shows the search driver and, per searchable model, its rows and whether its index is there. |
+| `smeltery prospect:import [table…]` | SQLite: rebuilds a model's search index from its table. |
+{%- endif %}
+{%- if hallmark %}
+| `smeltery hallmark:prune-expired [--hours=24]` | Deletes API tokens that expired at least that long ago. |
+{%- endif %}
+{%- if agents %}
+{%- if not web %}
+| `smeltery work` | Runs the agents, the job queue workers and the schedule until Ctrl-C. |
+{%- endif %}
+| `smeltery agents:list` | Lists the agents of the running app with their state. |
+| `smeltery agents:start\|stop\|pause\|resume\|restart <name>` | Controls an agent of the running app. |
+| `smeltery agents:logs <name>` | Shows an agent's recent log lines. |
+| `smeltery agents:runs <name>` | Lists an agent's recent runs and their outcomes. |
+| `smeltery schedule:list` | Lists the scheduled tasks and their next run. |
+| `smeltery schedule:run` | Runs the scheduled tasks that are due now, once (for system cron). |
+| `smeltery make:agent Name` | An agent, registered in `app/agents/mod.rs`. |
+| `smeltery make:job Name` | A queued job, registered in `app/agents/mod.rs`. |
+{%- endif %}
+| `smeltery make:model Name [field:type ...]` | A model. Types: `string`, `text`, `integer`, `bigint`, `bool`, `float`, `date`, `datetime`, `json`, `uuid`, `<name>_id:foreign`, `file` (an upload: the form gets a file input and a `mimes` rule, images for a name such as `image` or `photo`, else images, PDF and office or text documents; never add `html`, `svg`, `xml` or `js`; the column holds the stored path); a trailing `?` makes a field nullable. Flags: `-m` migration, `-c` controller, `-r` resource controller with {% if alloy %}{{ kit_name }} pages{% else %}views{% endif %} and routes{% if web %}{% if auth %} (`index` and `show` public, the routes that change records behind `auth`){% else %} (all public: protect them before deploying){% endif %}{% endif %}, `-f` factory, `-s` seeder, `--all`{% if search %}, `--searchable` (full-text search: `impl Searchable`, the index migration, a list page that searches){% endif %}. |
+| `smeltery make:migration name` | A migration: `create_x_table`, `add_y_to_x_table`, or any other name. |
+| `smeltery make:seeder Name` | A seeder. |
+| `smeltery make:factory Name [--model Post]` | A factory for a model. |
+| `smeltery make:command Name` | A console command. |
+| `smeltery make:mail Name` | A mail class and its template in `resources/views/mail/`. |
+| `smeltery make:middleware Name` | A middleware function; register it in `bootstrap/app.rs` with `.middleware("alias", f)`. |
+{%- if mold %}
+| `smeltery make:controller Name [--resource [--model Post]]` | A controller with Mold views and route entries. |
+| `smeltery make:spark Name` | A Spark (live component) and its view, registered in `app/sparks/mod.rs`. |
+| `smeltery route:list` | Lists the app's routes. |
+{%- elif alloy %}
+| `smeltery make:controller Name [--resource [--model Post]]` | A controller with {{ kit_name }} pages in `resources/js/pages/` and route entries. |
+| `smeltery make:page Name` | A {{ kit_name }} page, its controller and its route. |
+| `smeltery route:list` | Lists the app's routes. |
+{%- endif %}
+
+## Tests
+
+Run `smeltery test` (or `cargo test`). HTTP tests build the app in memory:
+
+```rust
+let app = smeltery::testing::TestApp::new({{ lib_name }}::build);
+let res = app.get("/");
+```

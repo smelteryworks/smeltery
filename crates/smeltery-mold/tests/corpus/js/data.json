@@ -1,0 +1,18 @@
+{
+  "name": "'+alert(1)+'\\</script><!--&\"",
+  "id": 7,
+  "post": { "title": "<b>x</b>", "views": 3 },
+  "tags": ["a", "b"],
+  "nothing": null,
+  "count": 5,
+  "ratio": 0.1,
+  "flag": true,
+  "line": "a\u2028b\u2029c",
+  "evil_url": "JavaScript:alert(1)",
+  "hidden_url": " \tjava\nscript:alert(2)",
+  "data_url": "data:text/html,<script>alert(3)</script>",
+  "good_url": "https://example.test/?a=1&b=2",
+  "rel_url": "/posts/1",
+  "mail_url": "mailto:me@example.test",
+  "colon_path": "posts/a:b"
+}

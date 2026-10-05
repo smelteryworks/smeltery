@@ -1,0 +1,102 @@
+//! The {{ name }} application: its modules and the function that wires them into Smeltery.
+
+#[path = "../app/mod.rs"]
+pub mod app;
+#[path = "../config/mod.rs"]
+pub mod config;
+#[path = "../database/mod.rs"]
+pub mod database;
+{%- if web %}
+#[path = "../routes/mod.rs"]
+pub mod routes;
+{%- endif %}
+{% if alloy %}
+use smeltery::alloy::{Alloy, AlloyExt as _};
+{%- endif %}
+{%- if anvil %}
+use smeltery::anvil::AnvilExt as _;
+{%- endif %}
+use smeltery::bellows::BellowsExt as _;
+{%- if hallmark %}
+use smeltery::hallmark::{Hallmark, HallmarkExt as _};
+{%- endif %}
+use smeltery::mail::MailExt as _;
+{%- if search %}
+use smeltery::prospect::ProspectExt as _;
+{%- endif %}
+{%- if mold or (alloy and agents) %}
+use smeltery::sparks::SparksExt as _;
+{%- endif %}
+{%- if temper %}
+use smeltery::temper::TemperExt as _;
+{%- endif %}
+{%- if agents %}
+use smeltery::watchfire::AgentsExt as _;
+{%- endif %}
+
+/// Builds the application: registers config, {% if auth %}authentication, {% endif %}{% if hallmark %}API tokens, {% endif %}{% if anvil %}broadcasting, {% endif %}{% if search %}search, {% endif %}migrations, seeders, commands{% if web %}{% if agents %}, agents{% endif %}{% if alloy %}, Alloy ({{ kit_name }} pages){% else %}, Sparks{% endif %} and routes{% else %} and agents{% endif %}.
+{%- if web %}
+pub fn build(app: smeltery::AppBuilder) -> smeltery::AppBuilder {
+    app.config(config::app::app())
+{%- if temper %}
+        // The authentication routes and their pages: `app/providers/temper.rs`.
+        .temper(app::providers::temper::temper())
+        // Require verified e-mail addresses (the `verified` middleware): uncomment the next line.
+        // .verify_email::<app::models::User>()
+{%- endif %}
+{%- if hallmark %}
+        // API tokens (`routes/api.rs`); `HALLMARK_*` in `.env` change its settings.
+        .hallmark(Hallmark::new())
+{%- endif %}
+{%- if anvil %}
+        // WebSockets and broadcasting: the channels of `routes/channels.rs`; `ANVIL_*` in `.env`.
+        .anvil(routes::channels::channels)
+{%- endif %}
+{%- if search %}
+        // Full-text search: the searchable models of `app/providers/search.rs`.
+        .prospect(app::providers::search::register)
+{%- endif %}
+        .migrations(database::migrations::register)
+        .seeders(database::seeders::register)
+        .commands(app::commands::register)
+        .bellows()
+        .mail()
+{%- if agents %}
+        .agents(app::agents::register)
+{%- endif %}
+{%- if alloy %}
+        .alloy(
+            Alloy::new()
+                .root::<app::providers::alloy::Root>()
+                .entries(["{{ entry }}"])
+{%- if auth %}
+                // The browser keeps every page's props in its history; encrypted, the `clear_history` of logging
+                // out makes them unreadable, so the back button cannot show a signed-in page (needs HTTPS or
+                // 127.0.0.1; elsewhere the browser stores them unencrypted).
+                .encrypt_history()
+{%- endif %}
+                .share(app::providers::alloy::shared),
+        )
+{%- if agents %}
+        // No Sparks of the app's own: the Watchfire dashboard's live panels need Sparks installed.
+        .sparks(|_| {})
+{%- endif %}
+{%- else %}
+        .sparks(app::sparks::register)
+{%- endif %}
+        .routes(routes::web::routes)
+        .api_routes(routes::api::routes)
+}
+{%- else %}
+///
+/// A headless app serves no routes: `smeltery work` runs its agents, jobs and schedule.
+pub fn build(app: smeltery::AppBuilder) -> smeltery::AppBuilder {
+    app.config(config::app::app())
+        .migrations(database::migrations::register)
+        .seeders(database::seeders::register)
+        .commands(app::commands::register)
+        .bellows()
+        .mail()
+        .agents(app::agents::register)
+}
+{%- endif %}

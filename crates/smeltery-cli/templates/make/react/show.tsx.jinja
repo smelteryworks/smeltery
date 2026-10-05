@@ -1,0 +1,42 @@
+import { Head, Link } from '@inertiajs/react';
+
+import type { {{ k.type_name }} } from '@/types/{{ k.type_module }}';
+
+/** `GET {{ m.url }}/{id}` (`show` in `app/controllers/{{ m.table }}.rs`): one {{ m.lower }}. */
+export default function Show({ {{ k.var }} }: { {{ k.var }}: {{ k.type_name }} }) {
+    return (
+        <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+            <Head title="{{ m.title }}" />
+            <h1 className="text-3xl font-bold tracking-tight">
+                {{ m.title }} {{ "{" }}{{ k.var }}.id}
+            </h1>
+            <dl className="panel mt-8 grid gap-x-6 gap-y-3 sm:grid-cols-[10rem_1fr]">
+{%- for f in m.form_fields %}
+                <dt className="mono-label pt-0.5">{{ f.label }}</dt>
+{%- if f.file %}
+                <dd>
+                    {{ "{" }}{{ f.show_expr }} && (
+                        <a href={`/storage/${{ "{" }}{{ f.show_expr }}}`} className="link break-all">
+                            {{ "{" }}{{ f.show_expr }}}
+                        </a>
+                    )}
+                </dd>
+{%- else %}
+                <dd>{{ "{" }}{{ f.show_expr }}}</dd>
+{%- endif %}
+{%- endfor %}
+            </dl>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+                <Link href={`{{ m.url }}/${{ "{" }}{{ k.var }}.id}/edit`} className="btn-primary">
+                    Edit
+                </Link>
+                <Link href="{{ m.url }}" className="btn-secondary">
+                    All {{ m.plural_lower }}
+                </Link>
+                <Link href={`{{ m.url }}/${{ "{" }}{{ k.var }}.id}`} method="delete" as="button" className="btn-secondary ml-auto text-red-700 dark:text-red-300">
+                    Delete
+                </Link>
+            </div>
+        </main>
+    );
+}

@@ -1,0 +1,74 @@
+<section class="wf-section" aria-labelledby="wf-agents-title">
+<div class="wf-section-head">
+<h2 id="wf-agents-title">Agents</h2>
+<span class="wf-count" aria-label="{{ summary.total }} agents">{{ summary.total }}</span>
+</div>
+<dl class="wf-tiles">
+<div class="wf-tile" data-tone="ok"><dt>Running</dt><dd><span class="wf-tile-value">{{ summary.running }}</span></dd></div>
+<div class="wf-tile" data-tone="warn"><dt>Paused</dt><dd><span class="wf-tile-value">{{ summary.paused }}</span></dd></div>
+<div class="wf-tile" data-tone="bad"><dt>Failed or backing off</dt><dd><span class="wf-tile-value">{{ summary.failing }}</span></dd></div>
+<div class="wf-tile" data-tone="idle"><dt>Standby</dt><dd><span class="wf-tile-value">{{ summary.standby }}</span></dd></div>
+</dl>
+@if(notice)
+<p class="wf-alert" role="status">{{ notice }}</p>
+@endif
+<div class="wf-panel wf-panel-flush">
+@if(agents)
+<table class="wf-table wf-agents" role="table">
+<caption class="wf-sr">Agents: state, heartbeat, restarts, runs, last heartbeat, the process that runs each, and controls</caption>
+<thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Agent</th><th scope="col" role="columnheader">State</th><th scope="col" role="columnheader" title="Whether the last heartbeat arrived within the timeout">Heartbeat</th><th scope="col" role="columnheader" class="wf-num">Restarts</th><th scope="col" role="columnheader" class="wf-num">Runs</th><th scope="col" role="columnheader">Last heartbeat (UTC)</th><th scope="col" role="columnheader">Process</th><th scope="col" role="columnheader"><span class="wf-sr">Actions</span></th></tr></thead>
+@for(a in agents)
+<tbody class="wf-agent" role="rowgroup" wire:key="agent-{{ a.name }}">
+<tr role="row">
+<th scope="row" role="rowheader" class="wf-agent-name"><b>{{ a.name }}</b>@if(a.last_error)<span class="wf-error">{{ a.last_error }}</span>@endif</th>
+<td role="cell" data-label="State"><span class="wf-pill" data-state="{{ a.state }}">{{ a.state_label }}</span>@if(a.backoff)<span class="wf-sub">{{ a.backoff }}</span>@endif</td>
+<td role="cell" data-label="Heartbeat"><span class="wf-health" data-health="{{ a.health }}" title="Whether the last heartbeat arrived within the timeout">{{ a.health }}</span></td>
+<td role="cell" data-label="Restarts" class="wf-num">{{ a.restarts }}</td>
+<td role="cell" data-label="Runs" class="wf-num">{{ a.runs }}</td>
+<td role="cell" data-label="Last heartbeat (UTC)" class="wf-mono">@if(a.last_heartbeat){{ a.last_heartbeat }}@else<span class="wf-muted">none</span>@endif</td>
+<td role="cell" data-label="Process">@if(a.place)<span class="wf-proc">{{ a.place }}</span>@else<span class="wf-muted">this process</span>@endif</td>
+<td role="cell" data-label="Actions" class="wf-actions">
+@for(x in a.actions)
+@if(x.danger)
+@if(a.confirming == x.name)
+<div class="wf-confirm-box" id="wf-confirm" tabindex="-1" wire:key="confirm" role="group" aria-label="Confirm: {{ x.label }} {{ a.name }}">
+<p>{{ x.label }} <strong>{{ a.name }}</strong>? {{ x.warning }}</p>
+<div class="wf-confirm-buttons">
+<form method="post" action="/_watchfire/agents/{{ a.path }}/{{ x.name }}" wire:submit="act('{{ a.arg }}', '{{ x.name }}')">@csrf<button class="wf-btn wf-btn-danger">Yes, {{ x.name }}</button></form>
+<a class="wf-btn" href="/_watchfire" wire:click.prevent="cancel" autofocus>Cancel</a>
+</div>
+</div>
+@else
+<a class="wf-btn wf-btn-warn wf-ask" href="/_watchfire?agent={{ a.query }}&amp;confirm={{ x.name }}#wf-confirm" aria-label="{{ x.label }} {{ a.name }}" wire:click.prevent="ask('{{ a.arg }}', '{{ x.name }}')">{{ x.label }}</a>
+@endif
+@else
+<form method="post" action="/_watchfire/agents/{{ a.path }}/{{ x.name }}" wire:submit="act('{{ a.arg }}', '{{ x.name }}')">@csrf<button class="wf-btn" aria-label="{{ x.label }} {{ a.name }}">{{ x.label }}</button></form>
+@endif
+@empty
+<span class="wf-muted">{{ a.state_label }}…</span>
+@endfor
+</td>
+</tr>
+@if(a.recent)
+<tr role="row" class="wf-runs-row"><td role="cell" colspan="8">
+<ol class="wf-runs" aria-label="Recent runs of {{ a.name }}, newest first">
+@for(r in a.recent)
+@if(r.sep)
+<li class="wf-runs-sep" aria-hidden="true">{{ r.sep }}</li>
+@endif
+<li>@if(r.sep)<span class="wf-sr">{{ r.sep }}: </span>@endif<span class="wf-run-id">#{{ r.id }}</span><span class="wf-pill wf-pill-sm" data-state="{{ r.outcome }}">{{ r.outcome }}</span><span class="wf-mono">{{ r.started }}</span><span class="wf-mono wf-muted">{{ r.duration }}</span>@if(r.job)<span>{{ r.job }}</span>@endif{{-- --}}@if(r.counters)<span class="wf-mono wf-muted">{{ r.counters }}</span>@endif{{-- --}}@if(r.error)<span class="wf-error">{{ r.error }}</span>@endif</li>
+@endfor
+</ol>
+</td></tr>
+@endif
+</tbody>
+@endfor
+</table>
+@else
+<div class="wf-empty">
+<p class="wf-empty-title">No agents</p>
+<p>Agents registered in <code>app/agents/mod.rs</code> show here; <code>smeltery make:agent Name</code> creates one.</p>
+</div>
+@endif
+</div>
+</section>

@@ -1,0 +1,5 @@
+error: ../../../../crates/smeltery-mold-macros/tests/ui/views/missing_field.mold.html:2:6: unknown variable `titel` (`Page` has no field `titel`)
+ --> tests/ui/missing_field.rs:4:8
+  |
+4 | #[mold("missing_field", crate = "smeltery_mold", dir = "../../../../crates/smeltery-mold-macros/tests/ui/views")]
+  |        ^^^^^^^^^^^^^^^

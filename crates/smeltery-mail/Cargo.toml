@@ -1,0 +1,46 @@
+[package]
+name = "smeltery-mail"
+description = "Mail for the Smeltery framework: mail classes with Mold templates, an SMTP transport (lettre, rustls), a log transport and a fake for tests."
+readme = "README.md"
+keywords = ["mail", "smtp", "email", "templates", "smeltery"]
+categories = ["email", "web-programming"]
+exclude = ["CLAUDE.md", "docs/", "/target", ".github/", "/resources/"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+axum = { workspace = true, features = ["tokio"] }
+base64.workspace = true
+http.workspace = true
+# rustls with ring and the platform verifier, like Watchfire's HTTP client (D-044); no OpenSSL.
+lettre = { workspace = true, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls", "ring", "rustls-platform-verifier"] }
+serde.workspace = true
+serde_json.workspace = true
+smeltery-core.workspace = true
+smeltery-mold.workspace = true
+smeltery-mold-macros.workspace = true
+tokio = { workspace = true, features = ["rt", "time", "fs"] }
+tracing.workspace = true
+
+[dev-dependencies]
+# The facade, for the doc samples: they use `smeltery::prelude::*` and the derive expands to `::smeltery::…` paths. Path only, no version: Cargo leaves it out of the published package (D-140).
+smeltery = { path = "../smeltery", default-features = false }
+smeltery-core = { workspace = true, features = ["sqlite"] }
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time", "net", "io-util", "test-util"] }
+# The TLS tests: a test CA made at test time, and the in-process SMTP server behind rustls (ring, like lettre).
+rcgen = { workspace = true, features = ["crypto", "pem", "ring"] }
+rustls = { workspace = true, features = ["ring", "std", "tls12"] }
+tokio-rustls = { workspace = true, features = ["ring", "tls12"] }
+tracing-subscriber = { workspace = true, features = ["fmt", "std"] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

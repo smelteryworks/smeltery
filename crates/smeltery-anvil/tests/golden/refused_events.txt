@@ -1,0 +1,7 @@
+# Client events and user sign-in are not enabled: pusher:error 4009, the socket stays open.
+> {"event":"client-typing","channel":"private-orders.7","data":{}}
+< {"event":"pusher:error","data":{"code":4009,"message":"client events are not enabled on this channel"}}
+> {"event":"pusher:signin","data":{"auth":"x","user_data":"{}"}}
+< {"event":"pusher:error","data":{"code":4009,"message":"user authentication is not supported"}}
+> {"event":"pusher:ping","data":{}}
+< {"event":"pusher:pong","data":{}}

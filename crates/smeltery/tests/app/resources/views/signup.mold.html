@@ -1,0 +1,12 @@
+<input name="email" value="{{ old("email") }}">
+@error("email")
+<p class="error">{{ message }}</p>
+@enderror
+@error("name")
+<p class="error">{{ message }}</p>
+@enderror
+<input name="password" value="{{ old("password") }}">
+<p>[{{ session("status") }}]</p>
+@auth
+<p>signed in</p>
+@endauth

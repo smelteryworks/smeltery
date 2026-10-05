@@ -1,0 +1,31 @@
+# Presence joins cost store writes and an announcement to every member: a socket may join 5 at once, then 1 a second,
+# and be in at most `max_presence_channels` presence channels.
+set max_presence_channels=5
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.1","auth":"{auth-presence:presence-room.1}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-join presence-room.1 7
+> {"event":"pusher:unsubscribe","data":{"channel":"presence-room.1"}}
+= unsubscribe presence-room.1
+= presence-leave presence-room.1 7
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.1","auth":"{auth-presence:presence-room.1}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-join presence-room.1 7
+> {"event":"pusher:unsubscribe","data":{"channel":"presence-room.1"}}
+= unsubscribe presence-room.1
+= presence-leave presence-room.1 7
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.2","auth":"{auth-presence:presence-room.2}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-join presence-room.2 7
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.3","auth":"{auth-presence:presence-room.3}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-join presence-room.3 7
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.4","auth":"{auth-presence:presence-room.4}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-join presence-room.4 7
+# The burst is spent: a churning socket is refused (it keeps its other channels).
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.5","auth":"{auth-presence:presence-room.5}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+< {"event":"pusher:subscription_error","channel":"presence-room.5","data":{"type":"AuthError","error":"too many presence joins; slow down","status":429}}
++ 1s
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.5","auth":"{auth-presence:presence-room.5}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-join presence-room.5 7
++ 1s
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.6","auth":"{auth-presence:presence-room.6}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-join presence-room.6 7
++ 1s
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.7","auth":"{auth-presence:presence-room.7}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+< {"event":"pusher:subscription_error","channel":"presence-room.7","data":{"type":"AuthError","error":"too many presence channels on this connection","status":429}}

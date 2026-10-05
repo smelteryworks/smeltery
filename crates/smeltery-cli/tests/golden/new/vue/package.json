@@ -1,0 +1,24 @@
+{
+  "name": "my-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "types": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@inertiajs/vue3": "3.8.0",
+    "vue": "3.5.43"
+  },
+  "devDependencies": {
+    "@inertiajs/vite": "3.8.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "22.20.5",
+    "@vitejs/plugin-vue": "6.0.9",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3",
+    "vite": "8.3.2",
+    "vue-tsc": "3.3.12"
+  }
+}

@@ -1,0 +1,8 @@
+<h1>{{ title }}</h1>
+<a href="{{ route("posts.show", { post: id }) }}">post</a>
+@csrf
+@auth
+in
+@else
+out
+@endauth

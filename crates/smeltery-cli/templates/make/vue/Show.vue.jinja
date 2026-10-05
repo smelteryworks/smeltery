@@ -1,0 +1,32 @@
+<!-- `GET {{ m.url }}/{id}` (`show` in `app/controllers/{{ m.table }}.rs`): one {{ m.lower }}. -->
+<script setup lang="ts">
+import { Head, Link } from '@inertiajs/vue3';
+
+import type { {{ k.type_name }} } from '@/types/{{ k.type_module }}';
+
+defineProps<{ {{ k.var }}: {{ k.type_name }} }>();
+</script>
+
+<template>
+    <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+        <Head title="{{ m.title }}" />
+        <h1 class="text-3xl font-bold tracking-tight">{{ m.title }} {{ k.vue_id }}</h1>
+        <dl class="panel mt-8 grid gap-x-6 gap-y-3 sm:grid-cols-[10rem_1fr]">
+{%- for f in m.form_fields %}
+            <dt class="mono-label pt-0.5">{{ f.label }}</dt>
+{%- if f.file %}
+            <dd>
+                <a v-if="{{ f.show_expr }}" :href="`/storage/${{ "{" }}{{ f.show_expr }}}`" class="link break-all">{{ f.vue_show }}</a>
+            </dd>
+{%- else %}
+            <dd>{{ f.vue_show }}</dd>
+{%- endif %}
+{%- endfor %}
+        </dl>
+        <div class="mt-6 flex flex-wrap items-center gap-3">
+            <Link :href="`{{ m.url }}/${{ "{" }}{{ k.var }}.id}/edit`" class="btn-primary">Edit</Link>
+            <Link href="{{ m.url }}" class="btn-secondary">All {{ m.plural_lower }}</Link>
+            <Link :href="`{{ m.url }}/${{ "{" }}{{ k.var }}.id}`" method="delete" as="button" class="btn-secondary ml-auto text-red-700 dark:text-red-300">Delete</Link>
+        </div>
+    </main>
+</template>

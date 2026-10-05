@@ -1,0 +1,7 @@
+# Silent for ANVIL_PING_INTERVAL (60 s): the server pings; no answer within ANVIL_PONG_TIMEOUT (30 s): 4201.
++ 59s
++ 1s
+< {"event":"pusher:ping","data":{}}
++ 29s
++ 1s
+x 4201

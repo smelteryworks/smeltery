@@ -1,0 +1,47 @@
+[package]
+name = "smeltery-hallmark"
+description = "Hallmark, the API tokens of the Smeltery framework: personal access tokens with abilities, the `hallmark` bearer guard, token management and revocation events."
+readme = "README.md"
+keywords = ["api", "tokens", "authentication", "bearer", "smeltery"]
+categories = ["web-programming", "authentication"]
+exclude = ["CLAUDE.md", "docs/", "/target", ".github/"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[features]
+default = []
+# Not for apps: builds the PostgreSQL and MySQL runs of the token test suite (`tests/backends.rs`, `DATABASE_URL_PG` /
+# `DATABASE_URL_MYSQL`), so other test builds compile the core without those backends.
+backend-tests = ["smeltery-core/postgres", "smeltery-core/mysql"]
+
+[dependencies]
+axum = { workspace = true, features = ["json"] }
+http.workspace = true
+# The bounded memory of recently used tokens (`last_used_at`) and of blocked guessers: already in core's tree.
+moka = { workspace = true, features = ["future"] }
+# `sea_query` statements and transactions, like core's password resets (the workspace pin).
+sea-orm = { workspace = true, features = ["with-chrono"] }
+serde.workspace = true
+serde_json.workspace = true
+smeltery-core.workspace = true
+tokio = { workspace = true, features = ["time"] }
+tracing.workspace = true
+
+[dev-dependencies]
+# The facade, for the doc samples: they use `smeltery::…` paths. Path only, no version: Cargo leaves it out of the published package (D-140).
+smeltery = { path = "../smeltery", default-features = false }
+smeltery-core = { workspace = true, features = ["sqlite"] }
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt", "macros", "time", "sync"] }
+tracing-subscriber = { workspace = true, features = ["fmt", "std"] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

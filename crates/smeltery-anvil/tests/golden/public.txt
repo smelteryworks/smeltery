@@ -1,0 +1,28 @@
+# Declared public channels subscribe; anything else is refused with the socket kept open.
+> {"event":"pusher:subscribe","data":{"channel":"news"}}
+= subscribe news
+< {"event":"pusher_internal:subscription_succeeded","channel":"news","data":{}}
+# Subscribing again (a client reconnecting its channels) answers the same.
+> {"event":"pusher:subscribe","data":{"channel":"news"}}
+< {"event":"pusher_internal:subscription_succeeded","channel":"news","data":{}}
+# A pattern with a parameter; `data` as a JSON string works too.
+> {"event":"pusher:subscribe","data":"{\"channel\":\"scores.42\"}"}
+= subscribe scores.42
+< {"event":"pusher_internal:subscription_succeeded","channel":"scores.42","data":{}}
+> {"event":"pusher:subscribe","data":{"channel":"undeclared"}}
+< {"event":"pusher:subscription_error","channel":"undeclared","data":{"type":"AuthError","error":"subscription refused","status":403}}
+> {"event":"pusher:subscribe","data":{"channel":"scores.1.2"}}
+< {"event":"pusher:subscription_error","channel":"scores.1.2","data":{"type":"AuthError","error":"subscription refused","status":403}}
+# A private pattern is not a public channel.
+> {"event":"pusher:subscribe","data":{"channel":"orders.7"}}
+< {"event":"pusher:subscription_error","channel":"orders.7","data":{"type":"AuthError","error":"subscription refused","status":403}}
+> {"event":"pusher:subscribe","data":{"channel":"bad#name"}}
+< {"event":"pusher:subscription_error","channel":"bad#name","data":{"type":"AuthError","error":"invalid channel name","status":400}}
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.1"}}
+< {"event":"pusher:subscription_error","channel":"presence-room.1","data":{"type":"AuthError","error":"authorization required","status":401}}
+> {"event":"pusher:subscribe","data":{"channel":"private-encrypted-x"}}
+< {"event":"pusher:subscription_error","channel":"private-encrypted-x","data":{"type":"AuthError","error":"this channel type is not supported","status":400}}
+> {"event":"pusher:unsubscribe","data":{"channel":"news"}}
+= unsubscribe news
+# Not subscribed: nothing to do.
+> {"event":"pusher:unsubscribe","data":{"channel":"news"}}

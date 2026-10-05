@@ -1,0 +1,5 @@
+error: ../../../../crates/smeltery-mold-macros/tests/ui/views/alloy_bad_args.mold.html:2:10: `@alloy` takes one string literal, the root element id, such as `@alloy("app")`
+ --> tests/ui/alloy_bad_args.rs:4:8
+  |
+4 | #[mold("alloy_bad_args", crate = "smeltery_mold", dir = "../../../../crates/smeltery-mold-macros/tests/ui/views")]
+  |        ^^^^^^^^^^^^^^^^

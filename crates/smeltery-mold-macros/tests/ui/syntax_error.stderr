@@ -1,0 +1,5 @@
+error: ../../../../crates/smeltery-mold-macros/tests/ui/views/syntax_error.mold.html:2:1: unclosed `@if` (missing `@endif`)
+ --> tests/ui/syntax_error.rs:4:8
+  |
+4 | #[mold("syntax_error", crate = "smeltery_mold", dir = "../../../../crates/smeltery-mold-macros/tests/ui/views")]
+  |        ^^^^^^^^^^^^^^

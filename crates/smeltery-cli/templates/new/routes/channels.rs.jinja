@@ -1,0 +1,42 @@
+{% if auth -%}
+//! Broadcasting channels (Anvil): the public channels clients may subscribe to, and who may join each private
+//! channel. `bootstrap/app.rs` installs them with `.anvil(routes::channels::channels)`.
+{%- else -%}
+//! Broadcasting channels (Anvil): the public channels clients may subscribe to. `bootstrap/app.rs` installs them
+//! with `.anvil(routes::channels::channels)`.
+{%- endif %}
+
+{% if auth and alloy -%}
+use smeltery::anvil::{ChannelCtx, Channels, Member};
+
+use crate::app::models::User;
+{%- elif auth -%}
+use smeltery::anvil::{ChannelCtx, Channels};
+{%- else -%}
+use smeltery::anvil::Channels;
+{%- endif %}
+
+/// Declares the app's channels. A public channel's events are public: anyone with the app key may subscribe.
+pub fn channels(c: &mut Channels) {
+    c.public("announcements");
+{%- if auth %}
+    // `private-users.{id}`: only the signed-in user with that id may join (guests are refused before this runs).
+    c.private("users.{user}", |ctx: ChannelCtx| async move {
+        let user: i64 = ctx.param("user")?;
+        Ok(ctx.user_id() == Some(user))
+    });
+{%- if alloy %}
+    // `presence-dashboard`: the signed-in users who have the dashboard open. Every member receives the others'
+    // `user_info`, so it carries only the id (the dashboard shows a count). To show who is online, share the names:
+    // `let info = smeltery::json!({ "id": user.id, "name": user.name });` (never an e-mail address).
+    c.presence("dashboard", |ctx: ChannelCtx| async move {
+        let Some(user) = ctx.user::<User>().await? else {
+            return Ok(None);
+        };
+        let info = smeltery::json!({ "id": user.id });
+        Ok(Some(Member::new(user.id).info(info)))
+    });
+{%- endif %}
+{%- endif %}
+    // smeltery:channels
+}

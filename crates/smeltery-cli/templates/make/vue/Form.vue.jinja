@@ -1,0 +1,128 @@
+{% if edit -%}
+<!-- `GET {{ m.url }}/{id}/edit` (`edit` in `app/controllers/{{ m.table }}.rs`): the form that `update` saves. -->
+<script setup lang="ts">
+import { Head, Link, useForm } from '@inertiajs/vue3';
+
+import type { {{ k.type_name }} } from '@/types/{{ k.type_module }}';
+
+const props = defineProps<{ {{ k.var }}: {{ k.type_name }} }>();
+
+const form = useForm({
+{%- for f in m.form_fields %}
+    {{ f.name }}: {{ f.edit_value_vue }},
+{%- endfor %}
+});
+{%- else -%}
+<!-- `GET {{ m.url }}/create` (`create` in `app/controllers/{{ m.table }}.rs`): the form that `store` saves. -->
+<script setup lang="ts">
+import { Head, Link, useForm } from '@inertiajs/vue3';
+
+const form = useForm({
+{%- for f in m.form_fields %}
+    {{ f.name }}: {{ f.create_value }},
+{%- endfor %}
+});
+{%- endif %}
+
+function submit() {
+{%- if m.has_files %}
+{%- if k.bools %}
+    // With a file the form goes up as multipart/form-data, where a checkbox is the text `true` or `false`.
+    form.transform((data) => ({
+        ...data,
+{%- for b in k.bools %}
+        {{ b }}: String(data.{{ b }}),
+{%- endfor %}
+    }));
+{%- endif %}
+    form.{% if edit %}put(`{{ m.url }}/${{ "{" }}props.{{ k.var }}.id}`{% else %}post('{{ m.url }}'{% endif %}, { forceFormData: true });
+{%- else %}
+{%- if k.numbers %}
+    // Number fields hold the text of their input; the server reads numbers (an empty field is a missing value).
+    form.transform((data) => ({
+        ...data,
+{%- for n in k.numbers %}
+        {{ n }}: data.{{ n }} === '' ? '' : Number(data.{{ n }}),
+{%- endfor %}
+    }));
+{%- endif %}
+    form.{% if edit %}put(`{{ m.url }}/${{ "{" }}props.{{ k.var }}.id}`){% else %}post('{{ m.url }}'){% endif %};
+{%- endif %}
+}
+</script>
+
+<template>
+    <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+{%- if edit %}
+        <Head title="Edit {{ m.lower }}" />
+        <h1 class="text-3xl font-bold tracking-tight">Edit {{ m.lower }} {{ k.vue_id }}</h1>
+{%- else %}
+        <Head title="New {{ m.lower }}" />
+        <h1 class="text-3xl font-bold tracking-tight">New {{ m.lower }}</h1>
+{%- endif %}
+        <form class="panel mt-8 space-y-5" @submit.prevent="submit">
+{%- for f in m.form_fields %}
+            <div>
+                <label for="{{ f.name }}" class="form-label">{{ f.label }}</label>
+{%- if f.checkbox %}
+                <input
+                    id="{{ f.name }}"
+                    v-model="form.{{ f.name }}"
+                    name="{{ f.name }}"
+                    type="checkbox"
+                    class="mt-2 h-4 w-4 accent-molten-700"
+                    :aria-invalid="form.errors.{{ f.name }} ? true : undefined"
+                    :aria-describedby="form.errors.{{ f.name }} ? '{{ f.name }}-error' : undefined"
+                />
+{%- elif f.file %}
+                <input
+                    id="{{ f.name }}"
+                    name="{{ f.name }}"
+                    type="file"
+{%- if f.required and not edit %}
+                    required
+{%- endif %}
+                    class="form-input"
+                    :aria-invalid="form.errors.{{ f.name }} ? true : undefined"
+                    :aria-describedby="form.errors.{{ f.name }} ? '{{ f.name }}-error' : undefined"
+                    @input="form.{{ f.name }} = ($event.target as HTMLInputElement).files?.[0] ?? null"
+                />
+{%- elif f.textarea %}
+                <textarea
+                    id="{{ f.name }}"
+                    v-model="form.{{ f.name }}"
+                    name="{{ f.name }}"
+{%- if f.required %}
+                    required
+{%- endif %}
+                    class="form-input"
+                    :aria-invalid="form.errors.{{ f.name }} ? true : undefined"
+                    :aria-describedby="form.errors.{{ f.name }} ? '{{ f.name }}-error' : undefined"
+                />
+{%- else %}
+                <input
+                    id="{{ f.name }}"
+                    v-model="form.{{ f.name }}"
+                    name="{{ f.name }}"
+                    type="{% if f.number %}number{% else %}text{% endif %}"
+{%- if f.step_any %}
+                    step="any"
+{%- endif %}
+{%- if f.required %}
+                    required
+{%- endif %}
+                    class="form-input"
+                    :aria-invalid="form.errors.{{ f.name }} ? true : undefined"
+                    :aria-describedby="form.errors.{{ f.name }} ? '{{ f.name }}-error' : undefined"
+                />
+{%- endif %}
+                <p v-if="form.errors.{{ f.name }}" id="{{ f.name }}-error" class="form-error">{{ f.vue_error }}</p>
+            </div>
+{%- endfor %}
+            <div class="flex items-center gap-3">
+                <button type="submit" class="btn-primary" :disabled="form.processing">Save</button>
+                <Link href="{{ m.url }}" class="btn-secondary">Cancel</Link>
+            </div>
+        </form>
+    </main>
+</template>

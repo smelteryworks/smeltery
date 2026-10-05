@@ -1,0 +1,34 @@
+@extends("layouts/app")
+
+@section("title", "New post")
+
+@section("content")
+  <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+    <h1 class="text-3xl font-bold tracking-tight">New post</h1>
+    <form method="POST" action="/posts" class="panel mt-8 space-y-5">
+      @csrf
+      <div>
+        <label for="title" class="form-label">Title</label>
+        <input id="title" name="title" type="text" required class="form-input" value="{{ old("title") }}" @error("title") aria-invalid="true" aria-describedby="title-error" @enderror>
+        @error("title")
+          <p id="title-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <div>
+        <label for="body" class="form-label">Body</label>
+        <textarea id="body" name="body" class="form-input" @error("body") aria-invalid="true" aria-describedby="body-error" @enderror>{{ old("body") }}</textarea>
+        @error("body")
+          <p id="body-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <div>
+        <label for="published" class="form-label">Published</label>
+        <input id="published" name="published" type="checkbox" value="true" class="mt-2 h-4 w-4 accent-molten-700" @error("published") aria-invalid="true" aria-describedby="published-error" @enderror>
+        @error("published")
+          <p id="published-error" class="form-error">{{ message }}</p>
+        @enderror
+      </div>
+      <div class="flex items-center gap-3"><button type="submit" class="btn-primary">Save</button> <a href="/posts" class="btn-secondary">Cancel</a></div>
+    </form>
+  </main>
+@endsection

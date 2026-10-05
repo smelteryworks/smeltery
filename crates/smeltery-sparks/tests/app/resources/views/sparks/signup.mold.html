@@ -1,0 +1,1 @@
+<form wire:submit="save"><input wire:model="name" value="{{ name }}">@error("name")<span class="err">{{ message }}</span>@enderror<p class="status">{{ session("status") }}</p></form>

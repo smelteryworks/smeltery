@@ -1,0 +1,195 @@
+{% if auth -%}
+//! Broadcasting tests (Anvil): sockets connect to the app in memory (no network), private channels admit only
+//! the users `routes/channels.rs` allows, and events reach the sockets on their channels.
+{%- else -%}
+//! Broadcasting tests (Anvil): sockets connect to the app in memory (no network), and events reach the sockets on
+//! their channels.
+{%- endif %}
+
+use smeltery::anvil::Anvil;
+{% if auth and alloy -%}
+use smeltery::anvil::testing::{AnvilSpy, TestSocket, auth_of, authorize, presence_of};
+use smeltery::db::factory::Factory as _;
+{%- elif auth -%}
+use smeltery::anvil::testing::{AnvilSpy, TestSocket, auth_of, authorize};
+use smeltery::db::factory::Factory as _;
+use smeltery::sparks::testing::TestSpark;
+{%- else -%}
+use smeltery::anvil::testing::{AnvilSpy, TestSocket};
+{%- endif %}
+use smeltery::testing::TestApp;
+
+use {{ lib_name }}::app::events::announcement_posted::AnnouncementPosted;
+{%- if auth %}
+use {{ lib_name }}::database::factories::user_factory::UserFactory;
+{%- endif %}
+
+#[test]
+fn an_announcement_reaches_the_public_channel() {
+    let app = TestApp::new({{ lib_name }}::build);
+    let spy = AnvilSpy::of(app.app());
+    let mut socket = TestSocket::connect(app.app());
+    assert_eq!(
+        socket.subscribe("announcements", None)["event"],
+        "pusher_internal:subscription_succeeded"
+    );
+    let anvil = Anvil::of(app.app()).expect("Anvil is installed");
+    let event = AnnouncementPosted {
+        message: "Hello".into(),
+    };
+    app.block_on(async { anvil.send(&event).await })
+        .expect("sending the event");
+    assert!(spy.sent_on("announcements", r"App\Events\AnnouncementPosted"));
+    let events = socket.events();
+    let received = events.last().expect("the event");
+    assert_eq!(received["channel"], "announcements");
+    assert_eq!(received["data"], r#"{"message":"Hello"}"#);
+}
+
+#[test]
+fn an_undeclared_public_channel_is_refused() {
+    let app = TestApp::new({{ lib_name }}::build);
+    let mut socket = TestSocket::connect(app.app());
+    assert_eq!(
+        socket.subscribe("secrets", None)["event"],
+        "pusher:subscription_error"
+    );
+}
+{%- if auth %}
+
+#[test]
+fn a_users_private_channel_admits_only_that_user() {
+    let app = TestApp::new({{ lib_name }}::build);
+    let db = app.db();
+    let owner = app
+        .block_on(UserFactory.create(&db))
+        .expect("creating a user");
+    let other = app
+        .block_on(UserFactory.create(&db))
+        .expect("creating a user");
+    let channel = format!("private-users.{}", owner.id);
+    let mut socket = TestSocket::connect(app.app());
+
+    // A guest is refused.
+    assert_eq!(
+        authorize(&app, socket.socket_id(), &channel, None).status(),
+        403
+    );
+    // Another user is refused.
+    app.acting_as(other.id);
+    assert_eq!(
+        authorize(&app, socket.socket_id(), &channel, None).status(),
+        403
+    );
+    // The owner gets a signature, and the socket subscribes with it.
+    app.acting_as(owner.id);
+    let auth =
+        auth_of(&authorize(&app, socket.socket_id(), &channel, None)).expect("the owner may join");
+    assert_eq!(
+        socket.subscribe(&channel, Some(&auth))["event"],
+        "pusher_internal:subscription_succeeded"
+    );
+    // Without a signature, nobody subscribes.
+    let mut stranger = TestSocket::connect(app.app());
+    assert_eq!(
+        stranger.subscribe(&channel, None)["event"],
+        "pusher:subscription_error"
+    );
+}
+{%- if alloy %}
+
+#[test]
+fn the_dashboard_presence_channel_shares_only_the_member_id() {
+    let app = TestApp::new({{ lib_name }}::build);
+    let user = app
+        .block_on(UserFactory.create(&app.db()))
+        .expect("creating a user");
+    let socket = TestSocket::connect(app.app());
+    // Guests are refused.
+    assert_eq!(
+        authorize(&app, socket.socket_id(), "presence-dashboard", None).status(),
+        403
+    );
+    app.acting_as(user.id);
+    let (_auth, data) = presence_of(&authorize(
+        &app,
+        socket.socket_id(),
+        "presence-dashboard",
+        None,
+    ))
+    .expect("a signed-in user joins");
+    // Every other member receives this `channel_data`: the id only, no name and no e-mail address.
+    let expected =
+        smeltery::json!({ "user_id": user.id.to_string(), "user_info": { "id": user.id } });
+    assert_eq!(data, expected.to_string());
+    assert!(!data.contains(&user.name), "{data}");
+    assert!(!data.contains(&user.email), "{data}");
+}
+
+#[test]
+fn notify_me_sends_the_signed_in_user_an_event() {
+    let app = TestApp::new({{ lib_name }}::build);
+    let user = app
+        .block_on(UserFactory.create(&app.db()))
+        .expect("creating a user");
+    let spy = AnvilSpy::of(app.app());
+    // Guests are sent to the login page; nothing is sent.
+    assert_eq!(app.post_form("/notify-me", &[]).status(), 303);
+    assert!(spy.nothing_sent());
+    app.acting_as(user.id);
+    assert_eq!(app.post_form("/notify-me", &[]).status(), 303);
+    assert!(spy.sent_on(
+        &format!("private-users.{}", user.id),
+        r"App\Events\UserNotified"
+    ));
+}
+{%- else %}
+
+#[test]
+fn the_notifications_spark_pings_the_signed_in_user() {
+    let app = TestApp::new({{ lib_name }}::build);
+    let user = app
+        .block_on(UserFactory.create(&app.db()))
+        .expect("creating a user");
+    let spy = AnvilSpy::of(app.app());
+    app.acting_as(user.id);
+    let html = app.get("/dashboard").text();
+    let mut spark =
+        TestSpark::from_html(&html, "notifications").expect("the dashboard shows the Spark");
+    assert_eq!(spark.data()["user_id"], user.id);
+    assert_eq!(
+        spark.call("ping", smeltery::json!([])).send(&app).status(),
+        200
+    );
+    assert!(spy.sent_on(
+        &format!("private-users.{}", user.id),
+        r"App\Events\UserNotified"
+    ));
+}
+
+#[test]
+fn the_notifications_spark_sends_at_most_ten_pings_a_minute() {
+    let app = TestApp::new({{ lib_name }}::build);
+    let user = app
+        .block_on(UserFactory.create(&app.db()))
+        .expect("creating a user");
+    let spy = AnvilSpy::of(app.app());
+    app.acting_as(user.id);
+    let html = app.get("/dashboard").text();
+    let mut spark =
+        TestSpark::from_html(&html, "notifications").expect("the dashboard shows the Spark");
+    for _ in 0..11 {
+        assert_eq!(
+            spark.call("ping", smeltery::json!([])).send(&app).status(),
+            200
+        );
+    }
+    let pings = spy
+        .sent()
+        .iter()
+        .filter(|s| s.name == r"App\Events\UserNotified")
+        .count();
+    assert_eq!(pings, 10, "the eleventh ping in a minute sends nothing");
+}
+{%- endif %}
+{%- endif %}

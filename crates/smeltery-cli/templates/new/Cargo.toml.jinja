@@ -1,0 +1,26 @@
+[package]
+name = "{{ name }}"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "{{ lib_name }}"
+path = "bootstrap/app.rs"
+
+[[bin]]
+name = "{{ name }}"
+path = "bootstrap/main.rs"
+{%- if alloy %}
+
+# The starter kit `smeltery new` wrote; the `smeltery` generators read it.
+[package.metadata.smeltery]
+frontend = "{{ frontend }}"
+{%- endif %}
+
+[dependencies]
+{{ smeltery_dep }}
+serde = { version = "1.0.229", features = ["derive"] }
+
+# An empty workspace table keeps this app its own workspace, even inside another one.
+[workspace]

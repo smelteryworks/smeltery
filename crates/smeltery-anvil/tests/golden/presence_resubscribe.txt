@@ -1,0 +1,18 @@
+# Sweep W5-02: subscribing again to a presence channel the socket is in answers the member list from the store, so it
+# costs a join from the same budget (5 at once, then 1 a second).
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.1","auth":"{auth-presence:presence-room.1}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-join presence-room.1 7
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.1","auth":"{auth-presence:presence-room.1}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-list presence-room.1
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.1","auth":"{auth-presence:presence-room.1}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-list presence-room.1
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.1","auth":"{auth-presence:presence-room.1}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-list presence-room.1
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.1","auth":"{auth-presence:presence-room.1}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-list presence-room.1
+# The burst is spent: the repeat is refused; the socket stays in the channel.
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.1","auth":"{auth-presence:presence-room.1}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+< {"event":"pusher:subscription_error","channel":"presence-room.1","data":{"type":"AuthError","error":"too many presence joins; slow down","status":429}}
++ 1s
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.1","auth":"{auth-presence:presence-room.1}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-list presence-room.1

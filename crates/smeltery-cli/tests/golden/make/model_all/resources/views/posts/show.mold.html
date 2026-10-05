@@ -1,0 +1,26 @@
+@extends("layouts/app")
+
+@section("title", "Post")
+
+@section("content")
+  <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+    <h1 class="text-3xl font-bold tracking-tight">Post {{ post.id }}</h1>
+    <dl class="panel mt-8 grid gap-x-6 gap-y-3 sm:grid-cols-[10rem_1fr]">
+      <dt class="mono-label pt-0.5">Title</dt>
+      <dd>{{ post.title }}</dd>
+      <dt class="mono-label pt-0.5">Body</dt>
+      <dd>{{ post.body }}</dd>
+      <dt class="mono-label pt-0.5">Published</dt>
+      <dd>{{ post.published }}</dd>
+    </dl>
+    <div class="mt-6 flex flex-wrap items-center gap-3">
+      <a href="/posts/{{ post.id }}/edit" class="btn-primary">Edit</a>
+      <a href="/posts" class="btn-secondary">All posts</a>
+      <form method="POST" action="/posts/{{ post.id }}" class="ml-auto">
+        @csrf
+        @method("DELETE")
+        <button type="submit" class="btn-secondary text-red-700 dark:text-red-300">Delete</button>
+      </form>
+    </div>
+  </main>
+@endsection

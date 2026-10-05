@@ -1,0 +1,144 @@
+/*
+ * The entry script imports this file; Vite builds it with Tailwind (@tailwindcss/vite) from the classes it finds in
+ * the pages, layouts and components under resources/js/ and in the root template. Add an @source line for any other
+ * folder that holds classes.
+ */
+@import "tailwindcss" source(none);
+@source "../js";
+@source "../views";
+
+/*
+ * The app's look: a forge. Change the colours here and every page follows.
+ * `smeltery serve` (the Vite dev server) applies changes at once; `smeltery build` minifies it for production.
+ * Light and dark follow the visitor's system setting.
+ */
+@theme {
+  /* Molten red: buttons, links, the accent words of headlines. */
+  --color-molten-400: #ff7a52;
+  --color-molten-500: #ff4a1c;
+  --color-molten-600: #e8361d;
+  --color-molten-700: #c72e16;
+  --color-molten-800: #a3260f;
+  /* Ember orange and gold: glows and gradients. */
+  --color-ember-400: #ff9a3c;
+  --color-ember-500: #f97a1f;
+  --color-gold-300: #ffd27a;
+  --color-gold-400: #ffb84d;
+  /* Iron and charcoal: dark surfaces. */
+  --color-forge-700: #3a322c;
+  --color-forge-800: #2a241f;
+  --color-forge-900: #1c1815;
+  --color-forge-950: #14110f;
+  /* Warm off-white: light surfaces. */
+  --color-ash-50: #faf7f4;
+  --color-ash-100: #f3eee9;
+  --color-ash-200: #e7dfd7;
+}
+
+@layer components {
+  /* The page background: off-white in light mode, charcoal with a faint ember glow in dark mode. */
+  .forge-page {
+    @apply min-h-screen bg-ash-50 text-forge-900 antialiased dark:bg-forge-950 dark:text-ash-100;
+  }
+  @media (prefers-color-scheme: dark) {
+    .forge-page {
+      background-image: radial-gradient(60rem 30rem at 85% -10%, rgb(232 54 29 / 0.14), transparent 70%);
+      background-repeat: no-repeat;
+    }
+  }
+
+  /* Cards and form panels. */
+  .panel {
+    @apply rounded-xl border border-ash-200 bg-white p-6 shadow-sm dark:border-forge-800 dark:bg-forge-900;
+  }
+
+  /* Buttons. White on molten-700 keeps a contrast above 4.5:1. */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-molten-500 bg-molten-700 text-white shadow-[0_0_24px_-6px_rgb(255_74_28/0.6)] hover:bg-molten-800 disabled:cursor-wait disabled:opacity-70;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-molten-500 border border-ash-200 bg-white text-forge-900 hover:bg-ash-100 disabled:cursor-wait disabled:opacity-70 dark:border-forge-700 dark:bg-forge-900 dark:text-ash-100 dark:hover:bg-forge-800;
+  }
+
+  /* Links inside text. */
+  .link {
+    @apply font-medium text-molten-700 underline decoration-1 underline-offset-4 hover:text-molten-800 focus-visible:outline-2 focus-visible:outline-molten-500 dark:text-molten-400 dark:hover:text-gold-300;
+  }
+
+  /* Form fields; an `aria-invalid="true"` field shows the error colour. */
+  .form-label {
+    @apply block text-sm font-medium text-forge-800 dark:text-ash-200;
+  }
+  .form-input {
+    @apply mt-1 block w-full rounded-lg border border-ash-200 bg-white px-3 py-2 text-forge-900 placeholder:text-stone-400 focus:border-molten-500 focus:ring-2 focus:ring-molten-500/40 focus:outline-none dark:border-forge-700 dark:bg-forge-950 dark:text-ash-100;
+  }
+  .form-input[aria-invalid="true"] {
+    @apply border-red-600 dark:border-red-400;
+  }
+  .form-error {
+    @apply mt-1 text-sm text-red-700 dark:text-red-300;
+  }
+
+  /* Flash messages. */
+  .alert-success {
+    @apply rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200;
+  }
+  .alert-error {
+    @apply rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200;
+  }
+
+  /* Small monospace labels ("machine" text). */
+  .mono-label {
+    @apply font-mono text-xs tracking-wider text-stone-600 uppercase dark:text-stone-400;
+  }
+
+  /* The welcome page's forge: an ember glow and rising sparks, in CSS only. */
+  .forge-glow {
+    background: radial-gradient(circle at 50% 60%, rgb(255 210 122 / 0.9), rgb(249 122 31 / 0.55) 22%, rgb(232 54 29 / 0.25) 45%, transparent 70%);
+    filter: blur(8px);
+    animation: forge-breathe 6s ease-in-out infinite;
+  }
+  .spark {
+    position: absolute;
+    bottom: 30%;
+    left: var(--x, 50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 9999px;
+    background: var(--color-gold-300);
+    box-shadow: 0 0 8px 2px rgb(255 154 60 / 0.8);
+    opacity: 0;
+    animation: spark-rise var(--t, 3s) ease-out var(--d, 0s) infinite;
+  }
+  @keyframes spark-rise {
+    10% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(var(--drift, 10px), -14rem) scale(0.4);
+    }
+  }
+  @keyframes forge-breathe {
+    50% {
+      opacity: 0.75;
+      transform: scale(0.96);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .forge-glow,
+    .spark {
+      animation: none;
+    }
+    /* Without motion the sparks rest at different heights above the ingot. */
+    .spark {
+      opacity: 0.7;
+    }
+    .spark:nth-of-type(2n) {
+      bottom: 48%;
+    }
+    .spark:nth-of-type(3n) {
+      bottom: 64%;
+    }
+  }
+}

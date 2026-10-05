@@ -1,0 +1,1 @@
+<form><input wire:model="form.title" value="{{ form.title }}">@error("form.title")<span class="err">{{ message }}</span>@enderror<p>{{ tags | join(", ") }}</p></form>

@@ -1,0 +1,13 @@
+error[E0277]: `Order` doesn't implement `std::fmt::Display`
+ --> tests/ui/fail_not_display.rs:7:21
+  |
+7 | #[derive(Serialize, BroadcastEvent)]
+  |                     ^^^^^^^^^^^^^^ `Order` cannot be formatted with the default formatter
+  |
+help: the trait `std::fmt::Display` is not implemented for `Order`
+ --> tests/ui/fail_not_display.rs:5:1
+  |
+5 | struct Order;
+  | ^^^^^^^^^^^^
+  = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
+  = note: this error originates in the macro `$crate::__export::format_args` which comes from the expansion of the derive macro `BroadcastEvent` (in Nightly builds, run with -Z macro-backtrace for more info)

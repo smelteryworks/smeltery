@@ -1,0 +1,36 @@
+import '@inertiajs/core';
+
+/** The shared props of `app/providers/alloy.rs`, on every page (`usePage().props`). */
+export interface SharedData {
+{%- if anvil %}
+    /** `anvil_key`: the app's public Anvil key, for the WebSocket client (`resources/js/echo.ts`). */
+    app: { name: string; anvil_key: string };
+{%- else %}
+    app: { name: string };
+{%- endif %}
+{%- if auth %}
+    auth: { user: User | null };
+{%- endif %}
+}
+{%- if auth %}
+
+/** `SharedUser` in `app/providers/alloy.rs`. */
+export interface User {
+    id: number;
+    name: string;
+    email: string;
+    email_verified: boolean;
+{%- if temper %}
+    /** Logging in asks for a two-factor code. */
+    two_factor_enabled: boolean;
+{%- endif %}
+}
+{%- endif %}
+
+declare module '@inertiajs/core' {
+    export interface InertiaConfig {
+        sharedPageProps: SharedData;
+        /** Values flashed with `session.flash(key, value)` (keys without `_`), as `usePage().flash`. */
+        flashDataType: { status?: string; error?: string };
+    }
+}

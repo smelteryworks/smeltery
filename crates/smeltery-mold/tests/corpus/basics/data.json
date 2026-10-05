@@ -1,0 +1,18 @@
+{
+  "title": "<Hello & 'World'>",
+  "html": "<em>raw</em>",
+  "unicode": "héllo wörld ✓",
+  "count": 5,
+  "flag": false,
+  "ratio": 0.1,
+  "big_f": 1e21,
+  "small_f": 0.000001,
+  "whole_f": 3.0,
+  "huge": 18446744073709551615,
+  "name": "Ann",
+  "missing_opt": null,
+  "some_opt": "yes",
+  "empty": "",
+  "tags": ["x", "y"],
+  "scores": { "math": 9 }
+}

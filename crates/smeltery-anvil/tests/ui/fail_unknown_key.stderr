@@ -1,0 +1,5 @@
+error: expected `public = "…"`, `private = "…"`, `presence = "…"`, `as = "…"` or `crate = "…"`
+ --> tests/ui/fail_unknown_key.rs:5:39
+  |
+5 | #[broadcast(crate = "smeltery_anvil", secret = "rooms.{room}")]
+  |                                       ^^^^^^

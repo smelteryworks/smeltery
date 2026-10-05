@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>{{ title }}</title>
+@vite
+@vite("resources/js/app.tsx", 'resources/css/app.css')
+@alloyHead
+</head>
+<body class="{{ title | lower }}">
+@alloy
+@alloy("root-2_b")
+<p>@vite ("resources/js/b.ts") then @vite, prose @alloyHeadless user@example.com</p>
+</body>
+</html>

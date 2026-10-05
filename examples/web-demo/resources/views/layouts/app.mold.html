@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@yield("title", "Web Demo")</title>
+<link rel="stylesheet" href="/assets/css/app.css">
+@sparksScripts
+</head>
+<body class="min-h-screen bg-gray-50 text-gray-900 antialiased">
+<nav class="border-b border-gray-200 bg-white">
+<div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+<a href="/" class="font-semibold">Web Demo</a>
+<div class="flex items-center gap-4 text-sm">
+@auth
+<a href="/dashboard" class="text-gray-700 hover:text-gray-900">Dashboard</a>
+<form method="POST" action="/logout">
+@csrf
+<button type="submit" class="text-gray-700 hover:text-gray-900">Log out</button>
+</form>
+@endauth
+@guest
+<a href="/login" class="text-gray-700 hover:text-gray-900">Log in</a>
+<a href="/register" class="rounded-md bg-gray-900 px-3 py-1.5 text-white hover:bg-gray-700">Register</a>
+@endguest
+</div>
+</div>
+</nav>
+@if(session("status"))
+<div class="mx-auto max-w-5xl px-4 pt-4">
+<p class="rounded-md bg-green-50 px-4 py-2 text-sm text-green-800">{{ session("status") }}</p>
+</div>
+@endif
+@if(session("error"))
+<div class="mx-auto max-w-5xl px-4 pt-4">
+<p class="rounded-md bg-red-50 px-4 py-2 text-sm text-red-800">{{ session("error") }}</p>
+</div>
+@endif
+@yield("content")
+</body>
+</html>

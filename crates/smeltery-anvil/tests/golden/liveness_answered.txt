@@ -1,0 +1,12 @@
+# Any frame proves the socket alive and restarts the silence.
++ 60s
+< {"event":"pusher:ping","data":{}}
+> {"event":"pusher:pong","data":{}}
++ 59s
++ 1s
+< {"event":"pusher:ping","data":{}}
+# A WebSocket pong frame counts too.
+control
++ 59s
++ 1s
+< {"event":"pusher:ping","data":{}}

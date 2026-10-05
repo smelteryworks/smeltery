@@ -1,0 +1,5 @@
+# The live tests sign the same users in at the same server; run the files one after another.
+concurrency: 1
+tags:
+  live:
+    description: needs the server app of the example's README.md

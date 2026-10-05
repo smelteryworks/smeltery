@@ -1,0 +1,61 @@
+//! The `{{ m.url }}` list searches (`smeltery make:model {{ m.pascal }} … --searchable`): every record without a search,
+//! the matching ones with their `{{ hl }}` highlighted. The records come from `{{ m.pascal }}Factory`.
+{% if k %}
+use smeltery::alloy::testing::AlloyRequests as _;
+{%- endif %}
+use smeltery::db::factory::Factory as _;
+use smeltery::db::prelude::*;
+use smeltery::testing::TestApp;
+
+use {{ lib }}::database::factories::{{ m.snake }}_factory::{{ m.pascal }}Factory;
+
+/// An app with two records, `Anvil care` and `Forge notes`.
+fn app_with_{{ m.table }}() -> TestApp {
+    let app = TestApp::new({{ lib }}::build);
+    let db = app.db();
+    for {{ hl }} in ["Anvil care", "Forge notes"] {
+        app.block_on({{ m.pascal }}Factory.create_with(&db, |m| m.{{ hl }} = Set({{ hl }}.to_owned())))
+            .expect("creating a record");
+    }
+    app
+}
+{%- if k %}
+
+#[test]
+fn the_{{ m.table }}_list_shows_every_record_without_a_search() {
+    let page = app_with_{{ m.table }}().get_alloy("{{ m.url }}").json();
+    let items = page["props"]["{{ k.list_var }}"]["items"].as_array().cloned().unwrap_or_default();
+    let {{ hl }}s: Vec<&str> = items.iter().filter_map(|i| i["{{ hl }}"].as_str()).collect();
+    assert_eq!(items.len(), 2, "{page}");
+    assert!({{ hl }}s.contains(&"Anvil care") && {{ hl }}s.contains(&"Forge notes"), "{page}");
+}
+
+#[test]
+fn the_{{ m.table }}_list_finds_and_highlights_matches() {
+    let page = app_with_{{ m.table }}().get_alloy("{{ m.url }}?q=anvil").json();
+    let items = page["props"]["{{ k.list_var }}"]["items"].as_array().cloned().unwrap_or_default();
+    assert_eq!(items.len(), 1, "{page}");
+    assert_eq!(
+        items[0]["_highlights"]["{{ hl }}"],
+        smeltery::json!([{ "text": "Anvil", "matched": true }, { "text": " care", "matched": false }])
+    );
+    assert_eq!(page["props"]["q"], "anvil");
+}
+{%- else %}
+
+#[test]
+fn the_{{ m.table }}_list_shows_every_record_without_a_search() {
+    let html = app_with_{{ m.table }}().get("{{ m.url }}").text();
+    assert!(html.contains(">Anvil care</a>"), "{html}");
+    assert!(html.contains(">Forge notes</a>"), "{html}");
+    assert!(!html.contains("@else"), "{html}");
+}
+
+#[test]
+fn the_{{ m.table }}_list_finds_and_highlights_matches() {
+    let html = app_with_{{ m.table }}().get("{{ m.url }}?q=anvil").text();
+    assert!(html.contains("><mark>Anvil</mark> care</a>"), "{html}");
+    assert!(!html.contains("Forge notes"), "{html}");
+    assert!(!html.contains("@else"), "{html}");
+}
+{%- endif %}

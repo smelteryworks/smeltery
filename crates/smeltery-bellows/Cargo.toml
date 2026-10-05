@@ -1,0 +1,33 @@
+[package]
+name = "smeltery-bellows"
+description = "Bellows, the AI-agent support of the Smeltery framework: an MCP server inside the app (routes, schema, config keys, errors, docs, generators, tests, agents)."
+readme = "README.md"
+keywords = ["mcp", "ai", "agents", "framework", "smeltery"]
+categories = ["development-tools", "web-programming"]
+exclude = ["CLAUDE.md", "docs/", "/target", ".github/"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+smeltery-core.workspace = true
+smeltery-watchfire.workspace = true
+tokio = { workspace = true, features = ["io-std", "io-util", "process", "time", "macros", "rt"] }
+tracing.workspace = true
+
+[dev-dependencies]
+smeltery-core = { workspace = true, features = ["sqlite"] }
+tempfile.workspace = true
+tokio = { workspace = true, features = ["io-std", "io-util", "process", "time", "macros", "rt", "rt-multi-thread"] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

@@ -1,0 +1,25 @@
+//! Application code, one module per folder.
+{% if temper %}
+pub mod actions;
+{%- endif %}
+{%- if agents %}
+pub mod agents;
+{%- endif %}
+pub mod commands;
+{%- if web %}
+pub mod controllers;
+{%- endif %}
+{%- if anvil %}
+pub mod events;
+{%- endif %}
+pub mod helpers;
+pub mod jobs;
+pub mod mail;
+pub mod middleware;
+pub mod models;
+pub mod providers;
+pub mod services;
+{%- if mold %}
+pub mod sparks;
+{%- endif %}
+// smeltery:mods

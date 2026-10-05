@@ -1,0 +1,33 @@
+[package]
+name = "smeltery-macros"
+description = "Derive macros of the Smeltery framework: #[derive(Validate)] for form validation, #[derive(Spark)] and #[actions] for Sparks live components, #[derive(Alloy)] for Alloy (Inertia) pages, #[derive(BroadcastEvent)] for Anvil events."
+readme = "README.md"
+keywords = ["validation", "derive", "forms", "smeltery", "web"]
+categories = ["web-programming", "development-tools::procedural-macro-helpers"]
+exclude = ["CLAUDE.md", "docs/", "/target", ".github/"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2.workspace = true
+quote.workspace = true
+syn = { workspace = true, features = ["full", "clone-impls"] }
+
+[dev-dependencies]
+serde.workspace = true
+# The facade, for the README sample: the derives expand to `::smeltery::…` paths. Path only, no version: Cargo leaves it out of the published package (D-140).
+smeltery = { path = "../smeltery", default-features = false }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

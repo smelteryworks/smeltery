@@ -1,0 +1,138 @@
+{% if m.search -%}
+import { Head, Link, router } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
+
+import type { {{ k.type_name }} } from '@/types/{{ k.type_module }}';
+
+/** One part of a highlighted text: rendered as text, the matched parts inside `<mark>` (never as HTML). */
+interface Segment {
+    text: string;
+    matched: boolean;
+}
+
+/** A search result: the record, its relevance (`null` without search terms) and its highlighted columns. */
+type Hit = {{ k.type_name }} & { _score: number | null; _highlights: Partial<Record<string, Segment[]>> };
+
+/** One page of results (`smeltery::db::Page`). */
+interface Results {
+    items: Hit[];
+    page: number;
+    per_page: number;
+    total: number;
+    last_page: number;
+}
+
+/** `GET {{ m.url }}?q=…&page=…` (`index` in `app/controllers/{{ m.table }}.rs`): the {{ m.plural_lower }} matching the search, ranked. */
+export default function Index({ {{ k.list_var }}, q }: { {{ k.list_var }}: Results; q: string }) {
+    const [search, setSearch] = useState(q);
+    const typed = useRef(false);
+
+    // Search as the visitor types, 300 ms after the last key; the page and its scroll position stay.
+    useEffect(() => {
+        if (!typed.current) {
+            return;
+        }
+        const timer = setTimeout(() => {
+            router.get('{{ m.url }}', search ? { q: search } : {}, { preserveState: true, preserveScroll: true, replace: true });
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [search]);
+
+    return (
+        <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+            <Head title="{{ m.plural_title }}" />
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <h1 className="text-3xl font-bold tracking-tight">{{ m.plural_title }}</h1>
+                <Link href="{{ m.url }}/create" className="btn-primary">
+                    New {{ m.lower }}
+                </Link>
+            </div>
+            <input
+                type="search"
+                value={search}
+                onChange={(e) => {
+                    typed.current = true;
+                    setSearch(e.target.value);
+                }}
+                placeholder="Search {{ m.plural_lower }}"
+                aria-label="Search {{ m.plural_lower }}"
+                className="form-input mt-8 w-full"
+            />
+            <ul className="panel mt-4 divide-y divide-ash-200 p-0 dark:divide-forge-800">
+                {{ "{" }}{{ k.list_var }}.items.map(({{ k.var }}) => (
+                    <li key={{ "{" }}{{ k.var }}.id}>
+                        <Link
+                            href={`{{ m.url }}/${{ "{" }}{{ k.var }}.id}`}
+                            className="block px-6 py-4 font-medium hover:bg-ash-100 focus-visible:outline-2 focus-visible:outline-molten-500 dark:hover:bg-forge-800"
+                        >
+{%- if m.search.highlight %}
+                            {({{ k.var }}._highlights.{{ m.search.highlight }} ?? [{ text: {{ k.var }}.{{ m.search.highlight }}, matched: false }]).map((part, i) =>
+                                part.matched ? <mark key={i}>{part.text}</mark> : <span key={i}>{part.text}</span>,
+                            )}
+{%- else %}
+                            {{ k.label }}
+{%- endif %}
+                        </Link>
+                    </li>
+                ))}
+                {{ "{" }}{{ k.list_var }}.items.length === 0 && (
+                    <li className="px-6 py-4 text-stone-600 dark:text-stone-400">{q ? 'No {{ m.plural_lower }} match your search.' : 'No {{ m.plural_lower }} yet.'}</li>
+                )}
+            </ul>
+            {{ "{" }}{{ k.list_var }}.last_page > 1 && (
+                <nav className="mt-6 flex items-center justify-between gap-4 text-sm" aria-label="Pages">
+                    {{ "{" }}{{ k.list_var }}.page > 1 ? (
+                        <Link href="{{ m.url }}" data={{ "{{" }} q, page: {{ k.list_var }}.page - 1 {{ "}}" }} preserveState className="btn-secondary">
+                            Previous
+                        </Link>
+                    ) : (
+                        <span />
+                    )}
+                    <span className="text-stone-600 dark:text-stone-400">
+                        Page {{ "{" }}{{ k.list_var }}.page} of {{ "{" }}{{ k.list_var }}.last_page}
+                    </span>
+                    {{ "{" }}{{ k.list_var }}.page < {{ k.list_var }}.last_page ? (
+                        <Link href="{{ m.url }}" data={{ "{{" }} q, page: {{ k.list_var }}.page + 1 {{ "}}" }} preserveState className="btn-secondary">
+                            Next
+                        </Link>
+                    ) : (
+                        <span />
+                    )}
+                </nav>
+            )}
+        </main>
+    );
+}
+{%- else -%}
+import { Head, Link } from '@inertiajs/react';
+
+import type { {{ k.type_name }} } from '@/types/{{ k.type_module }}';
+
+/** `GET {{ m.url }}` (`index` in `app/controllers/{{ m.table }}.rs`): every {{ m.lower }}. */
+export default function Index({ {{ k.list_var }} }: { {{ k.list_var }}: {{ k.type_name }}[] }) {
+    return (
+        <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+            <Head title="{{ m.plural_title }}" />
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <h1 className="text-3xl font-bold tracking-tight">{{ m.plural_title }}</h1>
+                <Link href="{{ m.url }}/create" className="btn-primary">
+                    New {{ m.lower }}
+                </Link>
+            </div>
+            <ul className="panel mt-8 divide-y divide-ash-200 p-0 dark:divide-forge-800">
+                {{ "{" }}{{ k.list_var }}.map(({{ k.var }}) => (
+                    <li key={{ "{" }}{{ k.var }}.id}>
+                        <Link
+                            href={`{{ m.url }}/${{ "{" }}{{ k.var }}.id}`}
+                            className="block px-6 py-4 font-medium hover:bg-ash-100 focus-visible:outline-2 focus-visible:outline-molten-500 dark:hover:bg-forge-800"
+                        >
+                            {{ k.label }}
+                        </Link>
+                    </li>
+                ))}
+                {{ "{" }}{{ k.list_var }}.length === 0 && <li className="px-6 py-4 text-stone-600 dark:text-stone-400">No {{ m.plural_lower }} yet.</li>}
+            </ul>
+        </main>
+    );
+}
+{%- endif %}

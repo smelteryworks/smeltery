@@ -1,0 +1,22 @@
+@extends("layouts/app")
+
+@section("title", "Post")
+
+@section("content")
+<main>
+<h1>Post {{ post.id }}</h1>
+<dl>
+<dt>Title</dt>
+<dd>{{ post.title }}</dd>
+<dt>Body</dt>
+<dd>{{ post.body }}</dd>
+</dl>
+@spark("post_image", { post_id: post.id })
+<p><a href="/posts/{{ post.id }}/edit">Edit</a> | <a href="/posts">All posts</a></p>
+<form method="POST" action="/posts/{{ post.id }}">
+@csrf
+@method("DELETE")
+<button type="submit">Delete</button>
+</form>
+</main>
+@endsection

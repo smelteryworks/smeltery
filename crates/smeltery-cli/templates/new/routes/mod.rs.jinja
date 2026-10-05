@@ -1,0 +1,8 @@
+//! Route definitions.
+
+pub mod api;
+{%- if anvil %}
+pub mod channels;
+{%- endif %}
+pub mod web;
+// smeltery:mods

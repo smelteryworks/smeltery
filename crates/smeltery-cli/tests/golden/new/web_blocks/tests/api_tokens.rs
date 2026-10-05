@@ -1,0 +1,97 @@
+//! API token tests (Hallmark): issuing a token for an e-mail address and a password, calling `auth:hallmark` routes
+//! with it, signing it out, and abilities. Each test creates its own user through the factory.
+
+use smeltery::db::factory::Factory as _;
+use smeltery::hallmark::testing::{acting_as, token_for};
+use smeltery::http::{HeaderMap, Method, StatusCode};
+use smeltery::testing::TestApp;
+
+use my_app::app::models::User;
+use my_app::database::factories::user_factory::UserFactory;
+
+/// A fresh app and a user who logs in with the password `password`.
+fn app_with_user() -> (TestApp, User) {
+    let app = TestApp::new(my_app::build);
+    let user = app
+        .block_on(UserFactory.create(&app.db()))
+        .expect("creating a user");
+    (app, user)
+}
+
+#[test]
+fn a_token_is_issued_for_the_password_and_reads_its_user() {
+    let (app, user) = app_with_user();
+    let res = app.post_json(
+        "/api/tokens",
+        &smeltery::json!({ "email": user.email, "password": "password", "device_name": "Test phone" }),
+    );
+    assert_eq!(res.status(), 201);
+    assert_eq!(res.header("cache-control"), Some("no-store"));
+    let body = res.json();
+    let token = body["token"].as_str().expect("the token").to_owned();
+    assert!(token.starts_with("smt_"));
+    assert_eq!(body["token_type"], "Bearer");
+    app.with_bearer(&token);
+    let me = app.get_json("/api/user");
+    assert_eq!(me.status(), 200);
+    assert_eq!(me.json()["email"], user.email.as_str());
+    assert!(me.json().get("password").is_none());
+}
+
+#[test]
+fn a_wrong_password_gets_no_token() {
+    let (app, user) = app_with_user();
+    let res = app.post_json(
+        "/api/tokens",
+        &smeltery::json!({ "email": user.email, "password": "wrong", "device_name": "Test phone" }),
+    );
+    assert_eq!(res.status(), 422);
+    assert!(res.json()["errors"]["email"].is_array());
+    assert!(res.json().get("token").is_none());
+}
+
+#[test]
+fn api_routes_need_a_valid_token() {
+    let (app, _) = app_with_user();
+    let res = app.get_json("/api/user");
+    assert_eq!(res.status(), 401);
+    assert_eq!(res.header("www-authenticate"), Some("Bearer"));
+    app.with_bearer(&format!("smt_{}", "0".repeat(64)));
+    assert_eq!(app.get_json("/api/user").status(), 401);
+}
+
+#[test]
+fn signing_the_current_token_out_ends_it() {
+    let (app, user) = app_with_user();
+    acting_as(&app, &user, &["*"]);
+    assert_eq!(app.get_json("/api/user").status(), 200);
+    let res = app.request(
+        Method::DELETE,
+        "/api/tokens/current",
+        HeaderMap::new(),
+        Default::default(),
+    );
+    assert_eq!(res.status(), StatusCode::NO_CONTENT.as_u16());
+    assert_eq!(app.get_json("/api/user").status(), 401);
+}
+
+#[test]
+fn abilities_limit_what_a_token_may_do() {
+    // A route of this test only: `abilities:` needs every listed ability (after `auth:hallmark`).
+    let app = TestApp::new(|b| {
+        my_app::build(b).api_routes(|r| {
+            r.get("/reports", || async { "reports" })
+                .middleware("auth:hallmark")
+                .middleware("abilities:reports:read");
+        })
+    });
+    let user = app
+        .block_on(UserFactory.create(&app.db()))
+        .expect("creating a user");
+    let reader = token_for(&app, &user, &["reports:read"]);
+    let other = token_for(&app, &user, &["orders:read"]);
+    app.with_bearer(&reader);
+    assert_eq!(app.get_json("/api/reports").status(), 200);
+    app.with_bearer(&other);
+    assert_eq!(app.get_json("/api/reports").status(), 403);
+}

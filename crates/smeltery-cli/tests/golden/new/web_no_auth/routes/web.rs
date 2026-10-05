@@ -1,0 +1,9 @@
+//! Web routes: pages for the browser. They run with sessions and CSRF protection.
+
+use crate::app::controllers::home;
+
+/// Registers the web routes.
+pub fn routes(r: &mut smeltery::routing::Router) {
+    r.get("/", home::index).name("home");
+    // smeltery:routes
+}

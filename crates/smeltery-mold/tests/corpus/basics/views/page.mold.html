@@ -1,0 +1,29 @@
+{{-- basics: escaping, raw output, values --}}
+<h1>{{ title }}</h1>
+<div>{!! html !!}</div>
+<p>@{{ not echoed }} @@ handle a@b.com @media</p>
+<p>{{ unicode }} {{ unicode | upper }} {{ unicode | len }}</p>
+@if(count > 10)
+  big
+@elseif(count > 3)
+  medium {{ count }}
+@else
+  small
+@endif
+@unless(flag)
+  not flagged
+@endunless
+<p>{{ count + 2 }} {{ count * 3 - 1 }} {{ count / 2 }} {{ count % 4 }} {{ count / 2.0 }} {{ -count }} {{ (count + 1) * 2 }}</p>
+<p>{{ ratio }} {{ ratio * 2 }} {{ big_f }} {{ small_f }} {{ whole_f }} {{ huge }}</p>
+<p>{{ count == 5 }} {{ count == 5.0 }} {{ ratio < 1 }} {{ name == "Ann" }} {{ name != 'Bob' && count >= 5 }} {{ !flag || false }} {{ huge > count }}</p>
+<p>[{{ missing_opt }}] [{{ some_opt }}] {{ missing_opt | default("none") }} {{ some_opt | default("none") }} {{ empty | default("blank") }}</p>
+@if(some_opt)
+has some
+@endif
+@if(missing_opt)
+has missing
+@else
+no missing
+@endif
+<p>{{ "  mixed CASE words  " | trim | title }} {{ name | lower }} {{ tags | join(", ") }} {{ tags | len }}</p>
+<p>{{ "a" + "b" }} {{ tags[1] }} {{ scores["math"] }} {{ "tab\there" }}</p>

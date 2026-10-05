@@ -1,0 +1,22 @@
+//! Agents and jobs: supervised long-running workers, the job queue and the schedule (Watchfire).
+
+use smeltery::watchfire::prelude::*;
+
+// smeltery:mods
+
+/// Register every agent, job and scheduled task.
+pub fn register(w: &mut Watchfire) {
+{%- if hallmark %}
+    // API tokens that expired a day ago or more leave the table (`smeltery hallmark:prune-expired` by hand).
+    w.schedule()
+        .call("hallmark-prune", |ctx| async move {
+            let tokens = smeltery::hallmark::Tokens::of(ctx.app())?;
+            tokens.prune_expired(24.hours()).await?;
+            Ok(())
+        })
+        .daily();
+{%- else %}
+    let _ = &w; // keeps `w` used while nothing is registered
+{%- endif %}
+    // smeltery:agents
+}

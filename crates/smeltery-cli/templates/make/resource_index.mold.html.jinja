@@ -1,0 +1,49 @@
+@extends("layouts/app")
+
+@section("title", "{{ m.plural_title }}")
+
+@section("content")
+  <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <h1 class="text-3xl font-bold tracking-tight">{{ m.plural_title }}</h1>
+      <a href="{{ m.url }}/create" class="btn-primary">New {{ m.lower }}</a>
+    </div>
+{%- if m.search %}
+    <form method="get" action="{{ m.url }}" role="search" class="mt-8 flex gap-2">
+      <input type="search" name="q" value="{{ "{{ q }}" }}" placeholder="Search {{ m.plural_lower }}" aria-label="Search {{ m.plural_lower }}" class="form-input flex-1">
+      <button type="submit" class="btn-secondary">Search</button>
+    </form>
+    <ul class="panel mt-4 divide-y divide-ash-200 p-0 dark:divide-forge-800">
+      @for(row in {{ m.table }}.items)
+        <li><a href="{{ m.url }}/{{ "{{ row." ~ m.snake ~ ".id }}" }}" class="block px-6 py-4 font-medium hover:bg-ash-100 focus-visible:outline-2 focus-visible:outline-molten-500 dark:hover:bg-forge-800">{% if m.search.highlight %}@if(row.label)@for(part in row.label)@if(part.matched)<mark>{{ "{{ part.text }}" }}</mark>@else{{ "{{ part.text }}" }}@endif{{ "{{-- --}}" }}@endfor{{ "{{-- --}}" }}@else{{ "{{ row." ~ m.snake ~ "." ~ m.search.highlight ~ " }}" }}@endif{% else %}#{{ "{{ row." ~ m.snake ~ ".id }}" }}{% endif %}</a></li>
+      @empty
+        <li class="px-6 py-4 text-stone-600 dark:text-stone-400">@if(q)No {{ m.plural_lower }} match your search.@else No {{ m.plural_lower }} yet.@endif</li>
+      @endfor
+    </ul>
+    @if({{ m.table }}.last_page > 1)
+      <form method="get" action="{{ m.url }}" class="mt-6 flex items-center justify-between gap-4 text-sm">
+        <input type="hidden" name="q" value="{{ "{{ q }}" }}">
+        @if({{ m.table }}.page > 1)
+          <button type="submit" name="page" value="{{ "{{ " ~ m.table ~ ".page - 1 }}" }}" class="btn-secondary">Previous</button>
+        @else
+          <span></span>
+        @endif
+        <span class="text-stone-600 dark:text-stone-400">Page {{ "{{ " ~ m.table ~ ".page }}" }} of {{ "{{ " ~ m.table ~ ".last_page }}" }}</span>
+        @if({{ m.table }}.page < {{ m.table }}.last_page)
+          <button type="submit" name="page" value="{{ "{{ " ~ m.table ~ ".page + 1 }}" }}" class="btn-secondary">Next</button>
+        @else
+          <span></span>
+        @endif
+      </form>
+    @endif
+{%- else %}
+    <ul class="panel mt-8 divide-y divide-ash-200 p-0 dark:divide-forge-800">
+      @for({{ m.snake }} in {{ m.table }})
+        <li><a href="{{ m.url }}/{{ m.id_echo }}" class="block px-6 py-4 font-medium hover:bg-ash-100 focus-visible:outline-2 focus-visible:outline-molten-500 dark:hover:bg-forge-800">{{ m.label_echo }}</a></li>
+      @empty
+        <li class="px-6 py-4 text-stone-600 dark:text-stone-400">No {{ m.plural_lower }} yet.</li>
+      @endfor
+    </ul>
+{%- endif %}
+  </main>
+@endsection

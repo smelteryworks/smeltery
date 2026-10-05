@@ -1,0 +1,10 @@
+//! Service providers: register services when the app boots.
+
+pub mod alloy;
+{%- if search %}
+pub mod search;
+{%- endif %}
+{%- if temper %}
+pub mod temper;
+{%- endif %}
+// smeltery:mods

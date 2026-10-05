@@ -1,0 +1,51 @@
+<!-- The layout of every page (set in app.ts): the nav, flash messages, the page and the footer. -->
+<script setup lang="ts">
+import { Link, usePage } from '@inertiajs/vue3';
+
+import AppLogo from '@/components/AppLogo.vue';
+
+const page = usePage();
+</script>
+{% raw %}
+<template>
+    <div class="flex min-h-screen flex-col">
+        <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-forge-900">Skip to content</a>
+        <header class="border-b border-ash-200/80 dark:border-forge-800/80">
+            <nav class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6" aria-label="Main">
+                <Link href="/" class="flex items-center gap-2.5 font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-molten-500">
+                    <AppLogo />
+                    <span>{{ page.props.app.name }}</span>
+                </Link>{% endraw %}
+{%- if auth %}{% raw %}
+                <div class="flex items-center gap-2 text-sm sm:gap-3">
+                    <template v-if="page.props.auth.user">
+                        <Link href="/dashboard" class="rounded-lg px-3 py-2 font-medium hover:bg-ash-100 focus-visible:outline-2 focus-visible:outline-molten-500 dark:hover:bg-forge-900">Dashboard</Link>
+                        <Link href="/settings/profile" class="rounded-lg px-3 py-2 font-medium hover:bg-ash-100 focus-visible:outline-2 focus-visible:outline-molten-500 dark:hover:bg-forge-900">Settings</Link>
+                        <Link href="/logout" method="post" as="button" class="btn-secondary">Log out</Link>
+                    </template>
+                    <template v-else>
+                        <Link href="/login" class="rounded-lg px-3 py-2 font-medium hover:bg-ash-100 focus-visible:outline-2 focus-visible:outline-molten-500 dark:hover:bg-forge-900">Log in</Link>
+                        <Link href="/register" class="btn-primary">Register</Link>
+                    </template>
+                </div>{% endraw %}
+{%- endif %}{% raw %}
+            </nav>
+        </header>
+        <div v-if="page.flash.status" class="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6">
+            <p class="alert-success" role="status">{{ page.flash.status }}</p>
+        </div>
+        <div v-if="page.flash.error" class="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6">
+            <p class="alert-error" role="alert">{{ page.flash.error }}</p>
+        </div>
+        <div id="main" class="flex-1">
+            <slot />
+        </div>
+        <footer class="border-t border-ash-200/80 dark:border-forge-800/80">
+            <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-sm text-stone-600 sm:px-6 dark:text-stone-400">
+                <p>Built with <a href="https://github.com/smelteryworks/smeltery" class="link">Smeltery</a>, the Rust web framework.</p>
+                <p class="font-mono text-xs">Rust · Vue · Inertia</p>
+            </div>
+        </footer>
+    </div>
+</template>
+{%- endraw %}

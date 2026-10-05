@@ -1,0 +1,63 @@
+import { Deferred, Head, Link, usePage } from '@inertiajs/react';
+
+import Card from '@/components/card';
+{%- if anvil %}
+import LiveNotifications from '@/components/live-notifications';
+{%- endif %}
+
+/** `Activity` in `app/controllers/dashboard.rs`. */
+interface Activity {
+    accounts: number;
+    member_since: string | null;
+}
+
+/** The first page after logging in. `activity` is a deferred prop: the client loads it right after the page. */
+export default function Dashboard({ activity }: { activity?: Activity }) {
+    const { auth } = usePage().props;
+    const name = auth.user?.name ?? '';
+    return (
+        <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+            <Head title="Dashboard" />
+            <p className="mono-label">Dashboard</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight">
+                Welcome, <span className="text-molten-700 dark:text-molten-500">{name}</span>
+            </h1>
+            <p className="mt-4 text-stone-700 dark:text-stone-300">You are logged in as {name}.</p>
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+                <Card title="This page">
+                    <p>
+                        <code>resources/js/pages/dashboard.tsx</code>, behind the <code>auth</code> and <code>verified</code> middleware in{' '}
+                        <code>routes/web.rs</code>.
+                    </p>
+                </Card>
+                <Card title="Your account">
+                    <p>
+                        Sign-up, log-in, password resets, email verification and two-factor authentication come from Temper:{' '}
+                        <code>app/providers/temper.rs</code> turns them on, <code>app/actions/temper/</code> holds the forms. Change your details
+                        under{' '}
+                        <Link href="/settings/profile" className="link">
+                            Settings
+                        </Link>
+                        .
+                    </p>
+                </Card>
+                <Card title="Recent activity">
+                    <Deferred data="activity" fallback={<p className="animate-pulse text-stone-500 dark:text-stone-400">Loading the activity…</p>}>
+                        {activity && (
+                            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+                                <dt className="text-stone-600 dark:text-stone-400">Accounts</dt>
+                                <dd className="font-mono">{activity.accounts}</dd>
+                                <dt className="text-stone-600 dark:text-stone-400">Member since</dt>
+                                <dd className="font-mono">{activity.member_since ?? '-'}</dd>
+                            </dl>
+                        )}
+                    </Deferred>
+                    <p className="mt-2 text-xs text-stone-600 dark:text-stone-400">A deferred prop, loaded after the page appeared.</p>
+                </Card>
+{%- if anvil %}
+                <LiveNotifications />
+{%- endif %}
+            </div>
+        </main>
+    );
+}

@@ -1,0 +1,7 @@
+# pusher:ping is answered; a pong, unknown events and garbage are dropped.
+> {"event":"pusher:ping","data":{}}
+< {"event":"pusher:pong","data":{}}
+> {"event":"pusher:pong","data":{}}
+> {"event":"pusher:something","data":{}}
+> not json at all
+> {"data":{}}

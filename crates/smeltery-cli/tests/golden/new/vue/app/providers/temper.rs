@@ -1,0 +1,59 @@
+//! Temper, the authentication routes: login and logout, registration, password reset, e-mail verification, password
+//! confirmation, profile and password updates and two-factor authentication. The forms and what they do are in
+//! `app/actions/temper/`, the pages in `resources/js/pages/auth/`; `smeltery route:list` lists the routes.
+
+use smeltery::alloy;
+use smeltery::http::{IntoResponse, Redirect};
+use smeltery::temper::{
+    DefaultResponses, Temper, TemperCtx, TemperResponses, TemperViews, TwoFactor, ViewCtx,
+};
+use smeltery::{Response, Result};
+
+use crate::app::actions::temper::{
+    CreateNewUser, ResetUserPassword, UpdateUserPassword, UpdateUserProfileInformation,
+};
+use crate::app::models::User;
+
+/// The features of this app; leaving one out removes its routes.
+pub fn temper() -> Temper<User> {
+    Temper::new()
+        .registration(CreateNewUser)
+        .reset_passwords(ResetUserPassword)
+        .email_verification()
+        .update_profile_information(UpdateUserProfileInformation)
+        .update_passwords(UpdateUserPassword)
+        .two_factor(TwoFactor::new())
+        .views(views())
+        .responses(Responses)
+}
+
+/// The Vue pages of Temper's `GET` routes (`resources/js/pages/`).
+pub fn views() -> TemperViews {
+    TemperViews::new()
+        .login(|_| alloy::render("auth/Login"))
+        .register(|_| alloy::render("auth/Register"))
+        .forgot_password(|_| alloy::render("auth/ForgotPassword"))
+        // The token and address come from the link as sent: untrusted, and the page shows them as text.
+        .reset_password(|ctx: ViewCtx| {
+            alloy::render("auth/ResetPassword")
+                .with("token", ctx.token())
+                .with("email", ctx.email())
+        })
+        .verify_email(|_| alloy::render("auth/VerifyEmail"))
+        .confirm_password(|_| alloy::render("auth/ConfirmPassword"))
+        .two_factor_challenge(|_| alloy::render("auth/TwoFactorChallenge"))
+}
+
+/// Temper's answers, with one change: logging out also clears the browser's history state, so the back button cannot
+/// show the signed-in pages' props.
+pub struct Responses;
+
+impl TemperResponses for Responses {
+    fn logout(&self, ctx: &TemperCtx) -> Result<Response> {
+        if ctx.wants_json() {
+            return DefaultResponses.logout(ctx);
+        }
+        alloy::clear_history(ctx.session());
+        Ok(Redirect::to(&ctx.route_or("home", "/")).into_response())
+    }
+}

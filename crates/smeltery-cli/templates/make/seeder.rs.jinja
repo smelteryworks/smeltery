@@ -1,0 +1,28 @@
+//! The `{{ struct_name }}` seeder.
+
+use smeltery::db::Db;
+{%- if factory %}
+use smeltery::db::factory::Factory;
+{%- endif %}
+use smeltery::db::seed::Seeder;
+{%- if factory %}
+
+use crate::database::factories::{{ factory_module }}::{{ factory }};
+{%- endif %}
+
+/// {% if factory %}Creates 10 `{{ model }}` records with `{{ factory }}`.{% else %}Fills the database with data.{% endif %}
+pub struct {{ struct_name }};
+
+impl Seeder for {{ struct_name }} {
+{%- if factory %}
+    async fn run(&self, db: &Db) -> smeltery::Result<()> {
+        {{ factory }}.count(10).create(db).await?;
+        Ok(())
+    }
+{%- else %}
+    async fn run(&self, _db: &Db) -> smeltery::Result<()> {
+        // Create records here, e.g. with a factory: `PostFactory.count(10).create(_db).await?;`.
+        Ok(())
+    }
+{%- endif %}
+}

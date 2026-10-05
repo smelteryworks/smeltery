@@ -1,0 +1,43 @@
+[package]
+name = "smeltery-temper"
+description = "Temper, the authentication flows of the Smeltery framework: login, logout, registration, password reset, email verification, password confirmation and profile and password updates as routes, with app-owned views and actions."
+readme = "README.md"
+keywords = ["authentication", "login", "registration", "web", "smeltery"]
+categories = ["web-programming", "authentication"]
+exclude = ["CLAUDE.md", "docs/", "/target", ".github/"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+base64.workspace = true
+hmac.workspace = true
+qrcodegen.workspace = true
+sea-orm.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha1.workspace = true
+smeltery-core.workspace = true
+smeltery-macros.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt"] }
+tracing.workspace = true
+
+[dev-dependencies]
+# The facade, for the doc samples: they use `smeltery::…` paths. Path only, no version: Cargo leaves it out of the published package (D-140).
+smeltery = { path = "../smeltery", default-features = false }
+# SQLite for the integration tests (an in-memory database per `TestApp`).
+smeltery-core = { workspace = true, features = ["sqlite"] }
+# Two test apps sharing a file cache (the two-factor budget across processes).
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "sync", "time"] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

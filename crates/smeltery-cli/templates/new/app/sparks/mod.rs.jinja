@@ -1,0 +1,23 @@
+//! Sparks: live components (state in Rust, view in `resources/views/sparks/`, no JavaScript to write).
+{% if anvil %}
+pub mod announcements;
+{%- endif %}
+pub mod counter;
+{%- if anvil and auth %}
+pub mod notifications;
+{%- endif %}
+// smeltery:mods
+
+use smeltery::sparks::Sparks;
+
+/// Register every Spark.
+pub fn register(s: &mut Sparks) {
+{%- if anvil %}
+    s.add::<announcements::Announcements>();
+{%- endif %}
+    s.add::<counter::Counter>();
+{%- if anvil and auth %}
+    s.add::<notifications::Notifications>();
+{%- endif %}
+    // smeltery:sparks
+}

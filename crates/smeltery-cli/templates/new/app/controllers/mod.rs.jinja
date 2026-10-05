@@ -1,0 +1,15 @@
+//! HTTP controllers: async functions that take extractors and return a response.
+{% if hallmark %}
+pub mod api;
+{%- endif %}
+{%- if temper %}
+pub mod dashboard;
+pub mod home;
+{%- if alloy and anvil %}
+pub mod notifications;
+{%- endif %}
+pub mod settings;
+{%- else %}
+pub mod home;
+{%- endif %}
+// smeltery:mods

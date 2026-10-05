@@ -1,0 +1,24 @@
+# Presence channels: the auth string covers the member (`channel_data`); joining hands the member to the socket
+# task, which answers with the member list.
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.1","auth":"{auth-presence:presence-room.1}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-join presence-room.1 7
+# Subscribing again lists the members again.
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.1","auth":"{auth-presence:presence-room.1}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-list presence-room.1
+# (A repeated subscribe costs a presence join from the budget; a second passes before the next ones.)
++ 1s
+# Another member than the one signed: the signature fails.
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.2","auth":"{auth-presence:presence-room.2}","channel_data":"{\"user_id\":\"8\"}"}}
+< {"event":"pusher:subscription_error","channel":"presence-room.2","data":{"type":"AuthError","error":"invalid signature","status":401}}
+# No member, or no usable member.
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.2","auth":"{auth-presence:presence-room.2}"}}
+< {"event":"pusher:subscription_error","channel":"presence-room.2","data":{"type":"AuthError","error":"channel_data required","status":401}}
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.2","auth":"{auth-presence:presence-room.2}","channel_data":"{\"name\":\"Ada\"}"}}
+< {"event":"pusher:subscription_error","channel":"presence-room.2","data":{"type":"AuthError","error":"invalid channel_data","status":400}}
+# A private signature on a presence channel (with the member added by the client): refused.
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.2","auth":"{auth:presence-room.2}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+< {"event":"pusher:subscription_error","channel":"presence-room.2","data":{"type":"AuthError","error":"invalid signature","status":401}}
+# Leaving: the hub first, then the member store.
+> {"event":"pusher:unsubscribe","data":{"channel":"presence-room.1"}}
+= unsubscribe presence-room.1
+= presence-leave presence-room.1 7

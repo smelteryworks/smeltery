@@ -1,0 +1,9 @@
+<div class="panel space-y-3">
+  <label class="form-label">Message
+    <input type="text" wire:model="message" value="{{ message }}" class="form-input"></label>
+  <div class="flex items-center gap-3">
+    <button type="button" wire:click="save" class="btn-primary">Save</button>
+    <span wire:loading.class.remove="invisible" class="mono-label invisible whitespace-nowrap" role="status">Saving…</span>
+  </div>
+  <p class="text-sm text-stone-600 dark:text-stone-400">Saved {{ saved }} times. Message: {{ message }}</p>
+</div>

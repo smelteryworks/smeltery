@@ -1,0 +1,48 @@
+# Client events: only on private and presence channels this socket is in whose pattern called `.whispers()`, at most
+# 10 a second, never back to the sender (the socket task sends them to the others).
+> {"event":"pusher:subscribe","data":{"channel":"private-chat.1","auth":"{auth:private-chat.1}"}}
+= subscribe private-chat.1
+< {"event":"pusher_internal:subscription_succeeded","channel":"private-chat.1","data":{}}
+> {"event":"client-typing","channel":"private-chat.1","data":{"typing":true}}
+= whisper private-chat.1 client-typing {"typing":true} -
+# A channel this socket is not in.
+> {"event":"client-typing","channel":"private-chat.2","data":{}}
+< {"event":"pusher:error","data":{"code":4009,"message":"client events are not enabled on this channel"}}
+# No channel.
+> {"event":"client-typing","data":{}}
+< {"event":"pusher:error","data":{"code":4009,"message":"client events are not enabled on this channel"}}
+# A channel whose pattern did not opt in.
+> {"event":"pusher:subscribe","data":{"channel":"private-orders.7","auth":"{auth:private-orders.7}"}}
+= subscribe private-orders.7
+< {"event":"pusher_internal:subscription_succeeded","channel":"private-orders.7","data":{}}
+> {"event":"client-typing","channel":"private-orders.7","data":{}}
+< {"event":"pusher:error","data":{"code":4009,"message":"client events are not enabled on this channel"}}
+# Never on public channels.
+> {"event":"pusher:subscribe","data":{"channel":"news"}}
+= subscribe news
+< {"event":"pusher_internal:subscription_succeeded","channel":"news","data":{}}
+> {"event":"client-typing","channel":"news","data":{}}
+< {"event":"pusher:error","data":{"code":4009,"message":"client events are not enabled on this channel"}}
+# On a presence channel the sender's user id goes along.
+> {"event":"pusher:subscribe","data":{"channel":"presence-room.1","auth":"{auth-presence:presence-room.1}","channel_data":"{\"user_id\":\"7\",\"user_info\":{\"name\":\"Ada\"}}"}}
+= presence-join presence-room.1 7
+> {"event":"client-moved","channel":"presence-room.1","data":{"x":1}}
+= whisper presence-room.1 client-moved {"x":1} 7
+# Ten a second: the 11th and later in the same second are refused and dropped.
++ 1s
+> {"event":"client-typing","channel":"private-chat.1","data":1} *10
+= whisper private-chat.1 client-typing 1 -
+= whisper private-chat.1 client-typing 1 -
+= whisper private-chat.1 client-typing 1 -
+= whisper private-chat.1 client-typing 1 -
+= whisper private-chat.1 client-typing 1 -
+= whisper private-chat.1 client-typing 1 -
+= whisper private-chat.1 client-typing 1 -
+= whisper private-chat.1 client-typing 1 -
+= whisper private-chat.1 client-typing 1 -
+= whisper private-chat.1 client-typing 1 -
+> {"event":"client-typing","channel":"private-chat.1","data":2}
+< {"event":"pusher:error","data":{"code":4301,"message":"client event rate limit reached"}}
++ 1s
+> {"event":"client-typing","channel":"private-chat.1","data":3}
+= whisper private-chat.1 client-typing 3 -

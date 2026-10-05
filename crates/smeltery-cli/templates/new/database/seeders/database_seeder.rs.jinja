@@ -1,0 +1,35 @@
+//! The main seeder: demo data for development.
+
+use smeltery::auth::hash_password;
+use smeltery::db::prelude::*;
+use smeltery::db::seed::Seeder;
+
+use crate::app::models::{User, user};
+use crate::config::app::app;
+
+/// Creates a demo user (`demo@example.com`, password `password`) when the `users` table is empty and `APP_ENV` is
+/// `local` or `testing`. In every other environment (`production`, `staging`, ...) it creates nothing.
+pub struct DatabaseSeeder;
+
+impl Seeder for DatabaseSeeder {
+    async fn run(&self, db: &Db) -> smeltery::Result<()> {
+        // The demo user's password is public: it is development data and never belongs on a server.
+        let env = app().env;
+        if matches!(env.as_str(), "local" | "testing") && User::count(db).await? == 0 {
+            User::create(
+                db,
+                user::ActiveModel {
+                    name: Set("Demo User".to_owned()),
+                    email: Set("demo@example.com".to_owned()),
+{%- if auth %}
+                    email_verified_at: Set(Some(ChronoUtc::now())),
+{%- endif %}
+                    password: Set(hash_password("password").await?),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        }
+        Ok(())
+    }
+}

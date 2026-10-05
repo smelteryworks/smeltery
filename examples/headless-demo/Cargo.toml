@@ -1,0 +1,23 @@
+[package]
+name = "headless-demo"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "headless_demo"
+path = "bootstrap/app.rs"
+
+[[bin]]
+name = "headless-demo"
+path = "bootstrap/main.rs"
+
+[dependencies]
+smeltery = { path = "../../crates/smeltery", default-features = false, features = ["sqlite"] }
+serde = { version = "1.0.229", features = ["derive"] }
+
+# An empty workspace table keeps this app its own workspace, even inside another one.
+[workspace]
+
+[dev-dependencies]
+tokio = { version = "1.53.2", features = ["macros", "rt", "test-util"] }

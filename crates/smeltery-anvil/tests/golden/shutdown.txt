@@ -1,0 +1,6 @@
+# At shutdown every socket gets 1001 (the client reconnects).
+> {"event":"pusher:subscribe","data":{"channel":"news"}}
+= subscribe news
+< {"event":"pusher_internal:subscription_succeeded","channel":"news","data":{}}
+shutdown
+x 1001

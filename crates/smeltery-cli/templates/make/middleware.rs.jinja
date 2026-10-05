@@ -1,0 +1,10 @@
+//! The `{{ fn_name }}` middleware.
+
+use smeltery::Response;
+use smeltery::middleware::{Next, Request};
+
+/// Runs around every request of the routes it is attached to.
+pub async fn {{ fn_name }}(req: Request, next: Next) -> Response {
+    // Inspect or change `req` here; return early to stop the request.
+    next.run(req).await
+}

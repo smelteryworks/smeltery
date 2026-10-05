@@ -1,0 +1,28 @@
+[package]
+name = "smeltery-mold"
+description = "Mold, the template engine of the Smeltery framework: `@`-directive templates with layouts, components and hot reload."
+readme = "README.md"
+keywords = ["template", "html", "smeltery", "mold"]
+categories = ["template-engine", "web-programming"]
+exclude = ["CLAUDE.md", "docs/", "/target", ".github/"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["std"] }
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

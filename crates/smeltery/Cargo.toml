@@ -1,0 +1,66 @@
+[package]
+name = "smeltery"
+description = "Batteries-included full-stack Rust: routing, typed config from .env, an app container, Mold templates and the smeltery CLI."
+readme = "README.md"
+keywords = ["web", "framework", "fullstack", "cli"]
+categories = ["web-programming::http-server", "command-line-utilities"]
+exclude = ["CLAUDE.md", "docs/", "/target", ".github/", "/resources/"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[[bin]]
+name = "smeltery"
+path = "src/bin/smeltery.rs"
+required-features = ["cli"]
+
+[features]
+default = ["cli", "sqlite"]
+## The `smeltery` command-line tool (what `cargo install smeltery` builds).
+cli = ["dep:smeltery-cli"]
+## SQLite support.
+sqlite = ["smeltery-core/sqlite"]
+## PostgreSQL support.
+postgres = ["smeltery-core/postgres"]
+## MySQL / MariaDB support.
+mysql = ["smeltery-core/mysql"]
+## Redis: the `redis` cache store, the `redis` PubSub driver, the Watchfire `redis` queue driver and Anvil's `redis`
+## presence store.
+redis = ["smeltery-core/redis", "smeltery-watchfire/redis", "smeltery-anvil/redis"]
+## The `memcached` cache store.
+memcached = ["smeltery-core/memcached"]
+## Watchfire's LLM helpers (`smeltery::watchfire::llm`).
+llm = ["smeltery-watchfire/llm"]
+
+[dependencies]
+serde_json.workspace = true
+smeltery-alloy.workspace = true
+smeltery-anvil.workspace = true
+smeltery-cli = { workspace = true, optional = true }
+smeltery-core.workspace = true
+smeltery-hallmark.workspace = true
+smeltery-temper.workspace = true
+smeltery-macros.workspace = true
+smeltery-mail.workspace = true
+smeltery-mold.workspace = true
+smeltery-mold-macros.workspace = true
+smeltery-prospect.workspace = true
+smeltery-bellows.workspace = true
+smeltery-sparks.workspace = true
+smeltery-watchfire = { workspace = true, features = ["mail"] }
+
+[dev-dependencies]
+serde.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
+serde_urlencoded.workspace = true
+tempfile.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

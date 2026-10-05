@@ -1,0 +1,25 @@
+# Skill: protect a route with authentication
+
+The app's authentication is Temper (`app/providers/temper.rs`): login, registration, password reset, e-mail
+verification and two-factor authentication. The middleware aliases: `auth` (guests are sent to `/login`), `guest`
+(logged-in users are sent to `/dashboard`), `password.confirm` (asks for the password again, then lets the user
+through for `AUTH_PASSWORD_TIMEOUT` seconds) and `verified`, which lets a user through once their e-mail address is
+verified, when `bootstrap/app.rs` turns email verification on with `.verify_email::<app::models::User>()` (until
+then it lets every signed-in user through).
+
+1. In `routes/web.rs`, add `.middleware("auth")` to the route (and `.middleware("password.confirm")` after it for a
+   page that changes security settings):
+
+   ```rust
+   r.get("/billing", crate::app::controllers::billing::index).name("billing").middleware("auth");
+   ```
+
+   Several routes at once: `r.group("/admin", |r| { … }).middleware("auth");`.
+2. In the handler, take `auth: smeltery::auth::Auth` and load the user with
+   `auth.user::<crate::app::models::User>().await?` (or `auth.id()` for the id only).
+3. In pages, `usePage().props.auth.user` is the signed-in user (`null` for guests): the `SharedUser` allow-list of
+   `app/providers/alloy.rs`. Add a field there to show it in the browser; never share the `User` model.
+4. Test it: `TestApp::new(build).get("/billing")` answers 303 with `location: /login` for a guest; log in first with
+   `smeltery::temper::testing::log_in(&app, email, password)` (the test cookie jar keeps the session), or use
+   `acting_as(user_id)`; `smeltery::temper::testing::confirm_password(&app, password)` passes `password.confirm`.
+5. Run `smeltery test`.

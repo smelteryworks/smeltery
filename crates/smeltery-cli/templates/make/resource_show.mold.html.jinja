@@ -1,0 +1,32 @@
+@extends("layouts/app")
+
+@section("title", "{{ m.title }}")
+
+@section("content")
+  <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+    <h1 class="text-3xl font-bold tracking-tight">{{ m.title }} {{ m.id_echo }}</h1>
+    <dl class="panel mt-8 grid gap-x-6 gap-y-3 sm:grid-cols-[10rem_1fr]">
+{%- for f in m.form_fields %}
+      <dt class="mono-label pt-0.5">{{ f.label }}</dt>
+{%- if f.file %}
+      <dd>
+        @if({{ f.path }})
+          <a href="/storage/{{ f.echo }}" class="link break-all">{{ f.echo }}</a>
+        @endif
+      </dd>
+{%- else %}
+      <dd>{{ f.echo }}</dd>
+{%- endif %}
+{%- endfor %}
+    </dl>
+    <div class="mt-6 flex flex-wrap items-center gap-3">
+      <a href="{{ m.url }}/{{ m.id_echo }}/edit" class="btn-primary">Edit</a>
+      <a href="{{ m.url }}" class="btn-secondary">All {{ m.plural_lower }}</a>
+      <form method="POST" action="{{ m.url }}/{{ m.id_echo }}" class="ml-auto">
+        @csrf
+        @method("DELETE")
+        <button type="submit" class="btn-secondary text-red-700 dark:text-red-300">Delete</button>
+      </form>
+    </div>
+  </main>
+@endsection

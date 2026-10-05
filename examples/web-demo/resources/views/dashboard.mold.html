@@ -1,0 +1,25 @@
+@extends("layouts/app")
+
+@section("title", "Dashboard")
+
+@section("content")
+<main class="mx-auto max-w-5xl px-4 py-10">
+<h1 class="text-2xl font-semibold">Dashboard</h1>
+<p class="mt-4 text-gray-700">You are logged in as {{ name }}.</p>
+<div class="mt-6">
+@spark("live_counter")
+</div>
+<ul class="mt-6 list-disc pl-6 text-gray-700">
+<li><a href="/posts" class="underline">Posts</a>: create, edit and delete posts, with an image each.</li>
+<li><a href="/_watchfire" class="underline">Watchfire dashboard</a>: the scraper agent, the queue workers and the schedule, live.</li>
+</ul>
+<h2 class="mt-8 text-xl font-semibold">Scraped pages ({{ page_count }})</h2>
+<ul class="mt-2 list-disc pl-6 text-gray-700">
+@for(page in pages)
+<li>{{ page.title }} <span class="text-sm text-gray-500">{{ page.url }}</span></li>
+@empty
+<li>None yet. Set <code>SCRAPER_START_URL</code> in <code>.env</code> to a site you may crawl.</li>
+@endfor
+</ul>
+</main>
+@endsection

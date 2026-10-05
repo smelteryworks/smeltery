@@ -1,0 +1,17 @@
+@extends("layouts/app")
+
+@section("title", "Posts")
+
+@section("content")
+<main>
+<h1>Posts</h1>
+<p><a href="/posts/create">New post</a></p>
+<ul>
+@for(post in posts)
+<li><a href="/posts/{{ post.id }}">{{ post.title }}</a>@if(post.image) (with image)@endif</li>
+@empty
+<li>No posts yet.</li>
+@endfor
+</ul>
+</main>
+@endsection

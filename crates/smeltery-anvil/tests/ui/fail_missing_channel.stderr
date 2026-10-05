@@ -1,0 +1,5 @@
+error: missing a channel: `#[broadcast(private = "orders.{order_id}")]` (or `public` / `presence`)
+ --> tests/ui/fail_missing_channel.rs:6:8
+  |
+6 | struct OrderShipped {
+  |        ^^^^^^^^^^^^

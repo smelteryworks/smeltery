@@ -1,0 +1,92 @@
+//! The `User` model (table `users`): the accounts that log in.
+
+use smeltery::db::prelude::*;
+
+#[sea_orm::model]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[sea_orm(table_name = "users")]
+pub struct Model {
+    #[sea_orm(primary_key)]
+    pub id: i64,
+    pub name: String,
+    #[sea_orm(unique)]
+    pub email: String,
+    /// When the e-mail address was verified (`None`: not yet), see `smeltery::auth::MustVerifyEmail`.
+    pub email_verified_at: Option<DateTimeUtc>,
+    /// The argon2id hash of the password (`smeltery::auth::hash_password`), never the password itself.
+    #[serde(skip_serializing)]
+    pub password: String,
+    #[serde(skip_serializing)]
+    pub remember_token: Option<String>,
+    /// Raised by `smeltery::auth::end_credentials`, which signs the user out everywhere.
+    #[serde(skip_serializing)]
+    pub credentials_epoch: Option<i64>,
+    pub created_at: Option<DateTimeUtc>,
+    pub updated_at: Option<DateTimeUtc>,
+    /// The two-factor secret, encrypted with a key derived from `APP_KEY` (Temper writes it).
+    #[serde(skip_serializing)]
+    pub two_factor_secret: Option<String>,
+    /// The unused recovery codes, as SHA-256 hashes.
+    #[serde(skip_serializing)]
+    pub two_factor_recovery_codes: Option<String>,
+    /// When a first code confirmed two-factor authentication (`None`: off, or not confirmed yet).
+    pub two_factor_confirmed_at: Option<DateTimeUtc>,
+    /// The last accepted time step of a code (a code is never accepted twice).
+    pub two_factor_last_step: Option<i64>,
+}
+
+impl ActiveModelBehavior for ActiveModel {}
+
+impl smeltery::auth::Authenticatable for Model {
+    fn auth_id(&self) -> i64 {
+        self.id
+    }
+
+    fn password_hash(&self) -> &str {
+        &self.password
+    }
+
+    fn remember_token(&self) -> Option<&str> {
+        self.remember_token.as_deref()
+    }
+
+    fn credentials_epoch(&self) -> Option<i64> {
+        self.credentials_epoch
+    }
+}
+
+/// Email verification, scaffolded and opt-in: it is required once `build` in `bootstrap/app.rs` calls
+/// `.verify_email::<app::models::User>()`.
+impl smeltery::auth::MustVerifyEmail for Model {
+    fn email(&self) -> &str {
+        &self.email
+    }
+
+    fn email_verified_at(&self) -> Option<DateTimeUtc> {
+        self.email_verified_at
+    }
+}
+
+/// Two-factor authentication (Temper): the four columns of the `add_two_factor_columns_to_users_table` migration.
+impl smeltery::temper::TwoFactorAuthenticatable for Model {
+    fn two_factor_secret(&self) -> Option<&str> {
+        self.two_factor_secret.as_deref()
+    }
+
+    fn two_factor_recovery_codes(&self) -> Option<&str> {
+        self.two_factor_recovery_codes.as_deref()
+    }
+
+    fn two_factor_confirmed_at(&self) -> Option<DateTimeUtc> {
+        self.two_factor_confirmed_at
+    }
+
+    fn two_factor_last_step(&self) -> Option<i64> {
+        self.two_factor_last_step
+    }
+
+    /// The account name an authenticator app shows next to the app's name.
+    fn two_factor_account(&self) -> String {
+        self.email.clone()
+    }
+}

@@ -1,0 +1,7 @@
+<div class="alert alert-{{ type }}" data-id="{{ data_id }}">
+@if(title)
+  <strong>{{ title }}</strong>
+@endif
+  {{ slot }}
+  <small>{{ count + 1 }}</small>
+</div>

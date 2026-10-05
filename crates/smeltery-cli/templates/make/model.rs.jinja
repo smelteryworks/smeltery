@@ -1,0 +1,39 @@
+//! The `{{ m.pascal }}` model (table `{{ m.table }}`).
+
+use smeltery::db::prelude::*;
+{%- if m.search %}
+use smeltery::prospect::{IndexSpec, Searchable, Weight};
+{%- endif %}
+
+#[sea_orm::model]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[sea_orm(table_name = "{{ m.table }}")]
+pub struct Model {
+    #[sea_orm(primary_key)]
+    pub id: i64,
+{%- for f in m.fields %}
+{%- if f.doc %}
+    {{ f.doc }}
+{%- endif %}
+    pub {{ f.name }}: {{ f.rust_type }},
+{%- endfor %}
+    pub created_at: Option<DateTimeUtc>,
+    pub updated_at: Option<DateTimeUtc>,
+}
+
+impl ActiveModelBehavior for ActiveModel {}
+{%- if m.search %}
+
+/// Full-text search (Prospect, registered in `app/providers/search.rs`). The search index comes from a migration
+/// whose `SearchIndex` names the same columns and weights: change both together (`SearchIndex::rebuild`).
+impl Searchable for Model {
+    fn index(i: &mut IndexSpec) {
+{%- for t in m.search.texts %}
+        i.text("{{ t.name }}"){% if t.weight == "A" %}.weight(Weight::A){% endif %};
+{%- endfor %}
+{%- for f in m.search.filters %}
+        i.filter("{{ f }}");
+{%- endfor %}
+    }
+}
+{%- endif %}

@@ -1,0 +1,418 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+# The jobs only read the repository. Actions are pinned to commit SHAs (the tag or branch in a comment); checkouts do
+# not keep the token in .git/config.
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: fmt, clippy, test, doc, package
+    runs-on: ubuntu-latest
+    env:
+      # Debug info makes target/ several times larger; this job ran the runner out of disk
+      # during the second (no-default-features) test build and was lost without logs.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, 2026-10-05
+        with:
+          toolchain: "1.97.0"
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - run: cargo test --workspace --all-features
+      - run: df -h /
+      - run: cargo test --workspace --no-default-features
+      - run: cargo doc --workspace --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - name: Package contents
+        run: |
+          for p in $(cargo metadata --no-deps --format-version 1 | python3 -c 'import sys,json;print(" ".join(p["name"] for p in json.load(sys.stdin)["packages"]))'); do
+            cargo package --list --allow-dirty -p "$p" > "files-$p.txt"
+            if grep -E '^(NOTES\.md|CLAUDE\.md|docs/|\.github/)' "files-$p.txt"; then
+              echo "::error::$p packages private files"; exit 1
+            fi
+          done
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Sparks client runtime tests
+        run: node --test 'crates/smeltery-sparks/js/test/*.test.mjs'
+      - name: The prebuilt CSS of new apps matches the pinned Tailwind
+        # Keep the version and checksum equal to `VERSION` / `ASSETS` in crates/smeltery-cli/src/tailwind.rs (D-206).
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/tailwindcss" https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-x64
+          echo "dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a  $RUNNER_TEMP/tailwindcss" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/tailwindcss"
+          TAILWIND_BIN="$RUNNER_TEMP/tailwindcss" cargo test -p smeltery-cli prebuilt_css -- --ignored
+      - name: Markdown is UTF-8 without BOM
+        run: |
+          for f in $(git ls-files '*.md'); do
+            python3 -c "import sys;b=open(sys.argv[1],'rb').read();assert not b.startswith(b'\xef\xbb\xbf'),'BOM';b.decode('utf-8')" "$f" || { echo "::error::$f"; exit 1; }
+          done
+
+  msrv:
+    name: MSRV 1.94
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, 2026-10-05
+        with:
+          toolchain: "1.94"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: cargo +1.94 check --workspace --all-features
+
+  cache-servers:
+    name: cache stores (redis, memcached)
+    runs-on: ubuntu-latest
+    services:
+      # Service images are pinned by digest (the multi-platform index), with the tag they had in a comment.
+      redis:
+        image: redis@sha256:c6eabf748fc7a61dbb5a705c78bcf3d6377b1127a97d0ce965c11c44ba46896f # 7, 2026-10-05
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+      memcached:
+        image: memcached@sha256:405a445c7c81bca205850426288baa5655c72859ae31d3de3fa823e6482be4ad # 1.6, 2026-10-05
+        ports: ["11211:11211"]
+    env:
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, 2026-10-05
+        with:
+          toolchain: "1.97.0"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: cache-servers
+      - name: Redis and memcached store tests
+        env:
+          REDIS_URL: redis://127.0.0.1:6379
+          MEMCACHED_SERVERS: 127.0.0.1:11211
+        run: cargo test -p smeltery-core --features sqlite,redis,memcached --test cache -- --ignored redis_store memcached_store
+      - name: Watchfire Redis queue tests
+        env:
+          REDIS_URL: redis://127.0.0.1:6379
+        run: cargo test -p smeltery-watchfire --features redis --lib queue::redis -- --ignored
+
+  generated-app:
+    name: generated app (${{ matrix.db }}, --smelt ${{ matrix.smelt }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The default app.
+          - db: sqlite
+            url: sqlite://database/database.sqlite?mode=rwc
+            smelt: watchfire,temper
+          # A web app without building blocks: no Watchfire, no authentication pages.
+          - db: sqlite
+            url: sqlite://database/database.sqlite?mode=rwc
+            smelt: none
+          # Every building block on every database: the token routes, the channels and the search index migrations
+          # (FTS5, tsvector, FULLTEXT) are built, tested and rolled back on each.
+          - db: sqlite
+            url: sqlite://database/database.sqlite?mode=rwc
+            smelt: watchfire,temper,hallmark,anvil,prospect
+          - db: postgres
+            url: postgres://postgres:postgres@127.0.0.1:5432/demo
+            smelt: watchfire,temper,hallmark,anvil,prospect
+          - db: mysql
+            url: mysql://root:root@127.0.0.1:3306/demo
+            smelt: watchfire,temper,hallmark,anvil,prospect
+    services:
+      postgres:
+        image: postgres@sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54 # 16, 2026-10-05
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: demo
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+      mysql:
+        image: mysql@sha256:6ea90827b1100f8f2ae306a539f86d2c264a26ed435a2a9f75551dd5c3aeb242 # 8.4, 2026-10-05
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: demo
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -proot" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, 2026-10-05
+        with:
+          toolchain: "1.97.0"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: generated-${{ matrix.db }}-${{ matrix.smelt }}
+      - run: cargo build -p smeltery --bin smeltery
+      - name: smeltery new
+        run: |
+          mkdir -p "$RUNNER_TEMP/apps"
+          "$CARGO_TARGET_DIR/debug/smeltery" new demo --path "$RUNNER_TEMP/apps" --db ${{ matrix.db }} --smelt ${{ matrix.smelt }} --bellows all --no-tailwind --no-git --smeltery-path "$GITHUB_WORKSPACE"
+      - name: generate a resource
+        working-directory: ${{ runner.temp }}/apps/demo
+        run: |
+          case "${{ matrix.smelt }}" in
+            *prospect*) "$CARGO_TARGET_DIR/debug/smeltery" make:model Post title:string body:text? -mcrfs --searchable ;;
+            *) "$CARGO_TARGET_DIR/debug/smeltery" make:model Post title:string body:text? -mcrfs ;;
+          esac
+          if [ "${{ matrix.smelt }}" = none ]; then
+            # No Watchfire: both generators refuse and write nothing (D-506).
+            if "$CARGO_TARGET_DIR/debug/smeltery" make:agent Poller; then exit 1; fi
+            if "$CARGO_TARGET_DIR/debug/smeltery" make:job Ping; then exit 1; fi
+            test ! -e app/agents && test ! -e app/jobs/ping.rs
+          else
+            "$CARGO_TARGET_DIR/debug/smeltery" make:agent Poller
+            "$CARGO_TARGET_DIR/debug/smeltery" make:job Ping
+          fi
+      - name: build and test the app
+        working-directory: ${{ runner.temp }}/apps/demo
+        env:
+          DATABASE_URL: ${{ matrix.url }}
+        run: |
+          cargo build
+          if [ "${{ matrix.db }}" = sqlite ]; then
+            cargo test
+          else
+            # TestApp migrates the same database fresh for every test, so the tests run one at a time.
+            TEST_DATABASE_URL="${{ matrix.url }}" cargo test -- --test-threads=1
+          fi
+          "$CARGO_TARGET_DIR/debug/smeltery" migrate
+          "$CARGO_TARGET_DIR/debug/smeltery" migrate:status
+          # Every `down` on the real server (the two-factor columns' `drop_column` too): `--step 100` takes every
+          # migration whatever its batch; then nothing may be left migrated, and every `up` runs again.
+          "$CARGO_TARGET_DIR/debug/smeltery" migrate:rollback --step 100
+          if "$CARGO_TARGET_DIR/debug/smeltery" migrate:status | grep -q '^Ran '; then exit 1; fi
+          "$CARGO_TARGET_DIR/debug/smeltery" migrate
+          "$CARGO_TARGET_DIR/debug/smeltery" db:seed
+          "$CARGO_TARGET_DIR/debug/smeltery" route:list
+          # Bellows: the MCP handshake and the tool list over stdio.
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | "$CARGO_TARGET_DIR/debug/demo" bellows:mcp > mcp.out
+          grep -q '"protocolVersion":"2025-06-18"' mcp.out
+          grep -q '"route_list"' mcp.out
+          grep -q '"db_schema"' mcp.out
+
+  generated-kit:
+    name: generated app (${{ matrix.kit }}, sqlite, every building block)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        kit: [react, vue]
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, 2026-10-05
+        with:
+          toolchain: "1.97.0"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: generated-${{ matrix.kit }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          # The kits pin exact versions in one table and their package.json templates (no lock file is shipped).
+          cache: npm
+          cache-dependency-path: |
+            crates/smeltery-cli/src/frontend.rs
+            crates/smeltery-cli/templates/new-${{ matrix.kit }}/package.json.jinja
+      - run: cargo build -p smeltery --bin smeltery
+      - name: smeltery new --frontend ${{ matrix.kit }} --npm
+        run: |
+          mkdir -p "$RUNNER_TEMP/apps"
+          # Every building block, so the Echo client (Anvil), the token routes and the search pages are type-checked,
+          # built and tested in each kit.
+          "$CARGO_TARGET_DIR/debug/smeltery" new demo --path "$RUNNER_TEMP/apps" --frontend ${{ matrix.kit }} --npm --db sqlite --smelt watchfire,temper,hallmark,anvil,prospect --bellows all --no-git --smeltery-path "$GITHUB_WORKSPACE"
+          test -d "$RUNNER_TEMP/apps/demo/node_modules"
+      - name: types and build of the kit
+        working-directory: ${{ runner.temp }}/apps/demo
+        run: |
+          npm run types
+          npm run build
+          test -f public/build/manifest.json
+      - name: build and test the app
+        working-directory: ${{ runner.temp }}/apps/demo
+        run: |
+          cargo build
+          cargo test
+      - name: generate resources and pages, then types, build and tests again
+        working-directory: ${{ runner.temp }}/apps/demo
+        run: |
+          "$CARGO_TARGET_DIR/debug/smeltery" make:model Post title:string body:text? views:integer published:bool --all --searchable
+          "$CARGO_TARGET_DIR/debug/smeltery" make:model Photo title:string image:file? public:bool -mr
+          "$CARGO_TARGET_DIR/debug/smeltery" make:page About
+          "$CARGO_TARGET_DIR/debug/smeltery" make:controller Reports
+          if "$CARGO_TARGET_DIR/debug/smeltery" make:spark Todo; then echo "::error::make:spark ran in a ${{ matrix.kit }} app"; exit 1; fi
+          npm run types
+          npm run build
+          cargo build
+          cargo test
+          "$CARGO_TARGET_DIR/debug/smeltery" migrate
+          "$CARGO_TARGET_DIR/debug/smeltery" db:seed
+          "$CARGO_TARGET_DIR/debug/smeltery" route:list
+      - name: serve the built pages
+        working-directory: ${{ runner.temp }}/apps/demo
+        run: |
+          SERVER_PORT=8766 "$CARGO_TARGET_DIR/debug/demo" serve &
+          pid=$!
+          for i in $(seq 1 50); do curl -sf -o /dev/null http://127.0.0.1:8766/up && break; sleep 0.2; done
+          for path in / /posts /posts/1 /photos /about /reports /login; do
+            curl -sf "http://127.0.0.1:8766$path" > page.html
+            grep -q 'data-page="app"' page.html
+            grep -q '/build/assets/' page.html
+          done
+          # The resource's create, edit and delete routes need a signed-in user: guests go to the login page.
+          test "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' http://127.0.0.1:8766/posts/create)" = "303 http://127.0.0.1:8766/login"
+          kill -INT "$pid"
+          wait "$pid"
+
+  generated-headless:
+    name: generated app (headless, sqlite)
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, 2026-10-05
+        with:
+          toolchain: "1.97.0"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: generated-headless
+      - run: cargo build -p smeltery --bin smeltery
+      - name: smeltery new --kind headless
+        run: |
+          mkdir -p "$RUNNER_TEMP/apps"
+          "$CARGO_TARGET_DIR/debug/smeltery" new worker --kind headless --path "$RUNNER_TEMP/apps" --db sqlite --no-git --smeltery-path "$GITHUB_WORKSPACE"
+      - name: generate an agent and a job
+        working-directory: ${{ runner.temp }}/apps/worker
+        run: |
+          "$CARGO_TARGET_DIR/debug/smeltery" make:agent Poller
+          "$CARGO_TARGET_DIR/debug/smeltery" make:job Ping
+      - name: build, test, migrate and work
+        working-directory: ${{ runner.temp }}/apps/worker
+        run: |
+          cargo build
+          cargo test
+          "$CARGO_TARGET_DIR/debug/smeltery" migrate
+          "$CARGO_TARGET_DIR/debug/smeltery" schedule:list
+          # Run the agents for a few seconds, then Ctrl-C: graceful shutdown must exit 0.
+          timeout --preserve-status -s INT 10 "$CARGO_TARGET_DIR/debug/worker" work
+
+  demos:
+    name: demo apps (sqlite)
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, 2026-10-05
+        with:
+          toolchain: "1.97.0"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: demos
+      - run: cargo build -p smeltery --bin smeltery
+      - name: web-demo
+        working-directory: examples/web-demo
+        run: |
+          cargo build
+          cargo test
+          cp .env.example .env
+          "$CARGO_TARGET_DIR/debug/smeltery" key:generate
+          "$CARGO_TARGET_DIR/debug/smeltery" migrate
+          "$CARGO_TARGET_DIR/debug/smeltery" db:seed
+          "$CARGO_TARGET_DIR/debug/smeltery" storage:link
+          # Serve for a few seconds with the scraper crawling the app itself, then Ctrl-C: exit 0.
+          SERVER_PORT=8765 SCRAPER_START_URL=http://127.0.0.1:8765/ SCRAPER_DELAY_MS=200 \
+            "$CARGO_TARGET_DIR/debug/web-demo" serve &
+          pid=$!
+          for i in $(seq 1 50); do curl -sf -o /dev/null http://127.0.0.1:8765/ && break; sleep 0.2; done
+          for path in / /login /_watchfire /_sparks/sparks.js /api/health; do
+            curl -sf -o /dev/null "http://127.0.0.1:8765$path"
+          done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/posts)" = 303
+          sleep 6
+          kill -INT "$pid"
+          wait "$pid"
+          "$CARGO_TARGET_DIR/debug/smeltery" agents:runs scraper
+      - name: headless-demo
+        working-directory: examples/headless-demo
+        run: |
+          cargo build
+          cargo test
+          cp .env.example .env
+          "$CARGO_TARGET_DIR/debug/smeltery" key:generate
+          "$CARGO_TARGET_DIR/debug/smeltery" migrate
+          FLAKY_BATCH_SECS=1 FLAKY_BATCHES_PER_RUN=2 FLAKY_FAILURE_PERCENT=50 POLLER_EVERY_SECS=2 \
+            timeout --preserve-status -s INT 10 "$CARGO_TARGET_DIR/debug/headless-demo" work
+          "$CARGO_TARGET_DIR/debug/smeltery" agents:runs flaky
+
+  cli:
+    name: CLI on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, 2026-10-05
+        with:
+          toolchain: "1.97.0"
+          components: rustfmt
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: cargo build -p smeltery --bin smeltery
+      - run: cargo test -p smeltery-cli
+      # Windows-specific behaviour (D-172, D-173): Mold error paths with `/` (trybuild `ui` included, which needs
+      # the workspace's own target/) and the file cache store under contention. These pass on Linux either way.
+      - name: Mold and the file cache store on Windows
+        if: runner.os == 'Windows'
+        # bash runs with `-e`: pwsh would only report the exit code of the last command.
+        shell: bash
+        run: |
+          cargo test -p smeltery-mold -p smeltery-mold-macros
+          cargo test -p smeltery-core --all-features --test cache file_store

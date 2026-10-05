@@ -1,0 +1,47 @@
+[package]
+name = "smeltery-cli"
+description = "The smeltery command of the Smeltery framework: new, serve, build, test, key:generate, storage:link and app command delegation."
+readme = "README.md"
+keywords = ["web", "framework", "cli", "scaffolding", "smeltery"]
+categories = ["command-line-utilities", "web-programming", "development-tools"]
+exclude = ["CLAUDE.md", "docs/", "/target", ".github/"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap = { workspace = true, features = ["std", "derive", "help", "usage", "error-context", "suggestions"] }
+ctrlc.workspace = true
+crossterm.workspace = true
+inquire.workspace = true
+minijinja = { workspace = true, features = ["serde"] }
+notify = { workspace = true, features = ["macos_fsevent"] }
+# `tailwind:install`: one HTTPS download, rustls with ring and the platform verifier as in Watchfire (D-207).
+reqwest = { workspace = true, features = ["blocking", "rustls-no-provider"] }
+rustls = { workspace = true, features = ["ring", "std", "tls12"] }
+rustls-platform-verifier.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+# `key:generate` and `storage:link` share their code with the app binary's built-in commands (D-201).
+smeltery-core.workspace = true
+sha2.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+# `serve` stops the app with SIGTERM and a bounded wait before `kill` (SIGKILL).
+nix = { workspace = true, features = ["signal"] }
+
+[dev-dependencies]
+# Mold's directive list, for the template tests (never in the CLI binary).
+smeltery-mold.workspace = true
+tempfile.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

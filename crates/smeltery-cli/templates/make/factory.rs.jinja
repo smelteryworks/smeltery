@@ -1,0 +1,24 @@
+//! Fake `{{ m.pascal }}` records for tests and seeders.
+
+use smeltery::db::factory::{Factory, Fake};
+{%- if m.fields %}
+use smeltery::db::prelude::*;
+{%- endif %}
+
+use crate::app::models::{{ m.snake }};
+
+/// Builds `{{ m.pascal }}` records with fake values.
+pub struct {{ struct_name }};
+
+impl Factory for {{ struct_name }} {
+    type Entity = {{ m.snake }}::Entity;
+
+    fn definition(&self, {% if m.fields %}fake{% else %}_fake{% endif %}: &mut Fake) -> {{ m.snake }}::ActiveModel {
+        {{ m.snake }}::ActiveModel {
+{%- for f in m.fields %}
+            {{ f.name }}: Set({{ f.fake }}),
+{%- endfor %}
+            ..Default::default()
+        }
+    }
+}

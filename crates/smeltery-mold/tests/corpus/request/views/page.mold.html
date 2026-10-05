@@ -1,0 +1,33 @@
+<form method="POST" action="{{ route("posts.update", { post: post_id }) }}">
+  @csrf
+  @method("PUT")
+  <input name="title" value="{{ old("title") }}">
+  @error("title")
+  <p class="error">{{ message }}</p>
+  @enderror
+  @error("body")
+  <p>never</p>
+  @enderror
+  <input name="body" value="{{ old("body") }}">
+  <meta name="t" content="{{ csrf_token() }}">
+</form>
+@auth
+  <p>signed in</p>
+@else
+  <p>guest</p>
+@endauth
+@guest
+  <p>please sign in</p>
+@else
+  <p>welcome back</p>
+@endguest
+@spark("counter", { start: start, label: "Clicks" })
+@sparksScripts
+<a href="{{ route("home") }}">home</a>
+@if(session("status"))
+<p class="status">{{ session("status") }}</p>
+@endif
+@if(session("missing"))
+<p>never</p>
+@endif
+<p>[{{ session("missing") }}]</p>

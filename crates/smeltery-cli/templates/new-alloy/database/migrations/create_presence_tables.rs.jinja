@@ -1,0 +1,22 @@
+//! Create the presence tables `presence_sockets` and `presence_users`: the members of presence channels when
+//! `PUBSUB_DRIVER` is `database` (Anvil).
+
+use smeltery::Result;
+use smeltery::db::migration::{Migration, Schema};
+
+/// Creates `presence_sockets` and `presence_users`.
+pub struct CreatePresenceTables;
+
+impl Migration for CreatePresenceTables {
+    fn name(&self) -> &'static str {
+        "{{ presence_migration_name }}"
+    }
+
+    async fn up(&self, schema: &Schema) -> Result<()> {
+        smeltery::anvil::presence_migrations::up(schema).await
+    }
+
+    async fn down(&self, schema: &Schema) -> Result<()> {
+        smeltery::anvil::presence_migrations::down(schema).await
+    }
+}

@@ -1,0 +1,5 @@
+error: ../../../../crates/smeltery-mold-macros/tests/ui/views/vite_bad_arg.mold.html:2:7: `@vite` takes one or more non-empty string literals (Vite entries), such as `@vite("resources/js/app.tsx")`; a bare `@vite` renders the configured entries
+ --> tests/ui/vite_bad_arg.rs:4:8
+  |
+4 | #[mold("vite_bad_arg", crate = "smeltery_mold", dir = "../../../../crates/smeltery-mold-macros/tests/ui/views")]
+  |        ^^^^^^^^^^^^^^

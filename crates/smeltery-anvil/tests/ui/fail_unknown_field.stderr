@@ -1,0 +1,5 @@
+error: the struct has no field `order` for `{order}`
+ --> tests/ui/fail_unknown_field.rs:5:49
+  |
+5 | #[broadcast(crate = "smeltery_anvil", private = "orders.{order}")]
+  |                                                 ^^^^^^^^^^^^^^^^

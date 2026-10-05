@@ -1,0 +1,19 @@
+@extends("layouts/app")
+
+@section("title", "Dashboard")
+
+@section("content")
+  <main class="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+    <p class="mono-label">Dashboard</p>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight">Welcome, <span class="text-molten-700 dark:text-molten-500">{{ name }}</span></h1>
+    <p class="mt-4 text-stone-700 dark:text-stone-300">You are logged in as {{ name }}.</p>
+    <div class="mt-8 grid gap-4 md:grid-cols-2">
+      <x-card title="This page">
+        <p><code>resources/views/dashboard.mold.html</code>, behind the <code>auth</code> and <code>verified</code> middleware in <code>routes/web.rs</code>.</p>
+      </x-card>
+      <x-card title="Your account">
+        <p>Sign-up, log-in, password resets, email verification and two-factor authentication come from Temper: <code>app/providers/temper.rs</code> turns them on, <code>app/actions/temper/</code> holds the forms. Change your details under <a href="/settings/profile" class="link">Settings</a>.</p>
+      </x-card>
+    </div>
+  </main>
+@endsection

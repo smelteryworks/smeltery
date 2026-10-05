@@ -1,0 +1,24 @@
+[package]
+name = "my-app"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "my_app"
+path = "bootstrap/app.rs"
+
+[[bin]]
+name = "my-app"
+path = "bootstrap/main.rs"
+
+# The starter kit `smeltery new` wrote; the `smeltery` generators read it.
+[package.metadata.smeltery]
+frontend = "vue"
+
+[dependencies]
+smeltery = { version = "0.1.0", default-features = false, features = ["sqlite"] }
+serde = { version = "1.0.229", features = ["derive"] }
+
+# An empty workspace table keeps this app its own workspace, even inside another one.
+[workspace]

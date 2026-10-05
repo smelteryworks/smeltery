@@ -1,0 +1,6 @@
+# A socket lives at most ANVIL_MAX_CONNECTION_AGE (120 s here); then 4200 (the client reconnects at once).
+set ping_interval=1000
+set max_age=120
++ 119s
++ 1s
+x 4200

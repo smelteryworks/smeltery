@@ -1,0 +1,104 @@
+[workspace]
+members = ["crates/smeltery", "crates/smeltery-alloy", "crates/smeltery-anvil", "crates/smeltery-bellows", "crates/smeltery-cli", "crates/smeltery-core", "crates/smeltery-hallmark", "crates/smeltery-macros", "crates/smeltery-mail", "crates/smeltery-mold", "crates/smeltery-mold-macros", "crates/smeltery-prospect", "crates/smeltery-sparks", "crates/smeltery-temper", "crates/smeltery-watchfire"]
+exclude = ["examples"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/smelteryworks/smeltery"
+homepage = "https://smeltery.org"
+
+[workspace.dependencies]
+smeltery-core = { path = "crates/smeltery-core", version = "0.1.0", default-features = false }
+smeltery-cli = { path = "crates/smeltery-cli", version = "0.1.0" }
+smeltery = { path = "crates/smeltery", version = "0.1.0", default-features = false }
+smeltery-mold = { path = "crates/smeltery-mold", version = "0.1.0" }
+smeltery-mold-macros = { path = "crates/smeltery-mold-macros", version = "0.1.0" }
+smeltery-macros = { path = "crates/smeltery-macros", version = "0.1.0" }
+smeltery-watchfire = { path = "crates/smeltery-watchfire", version = "0.1.0" }
+smeltery-sparks = { path = "crates/smeltery-sparks", version = "0.1.0" }
+smeltery-mail = { path = "crates/smeltery-mail", version = "0.1.0" }
+smeltery-bellows = { path = "crates/smeltery-bellows", version = "0.1.0" }
+smeltery-alloy = { path = "crates/smeltery-alloy", version = "0.1.0" }
+smeltery-anvil = { path = "crates/smeltery-anvil", version = "0.1.0" }
+smeltery-hallmark = { path = "crates/smeltery-hallmark", version = "0.1.0" }
+smeltery-temper = { path = "crates/smeltery-temper", version = "0.1.0" }
+smeltery-prospect = { path = "crates/smeltery-prospect", version = "0.1.0" }
+
+aes-gcm = { version = "0.10.3", default-features = false }
+anyhow = "1.0.104"
+argon2 = { version = "0.6.0", default-features = false }
+base64 = { version = "0.22.1", default-features = false, features = ["std"] }
+axum = { version = "0.8.9", default-features = false }
+bytes = "1.12.1"
+cookie = { version = "0.18.2", default-features = false }
+clap = { version = "4.6.7", default-features = false }
+# `termination`: `smeltery serve` stops its app on SIGTERM / SIGHUP too, not only on Ctrl-C (ctrlc covers every
+# console event on Windows whatever the feature).
+ctrlc = { version = "3.5.2", default-features = false, features = ["termination"] }
+# `smeltery serve` (Unix): SIGTERM to the app before it is killed; the version ctrlc already pulls.
+nix = { version = "0.31.3", default-features = false }
+getrandom = { version = "0.4.3", default-features = false }
+form_urlencoded = "1.2.2"
+crossterm = { version = "0.29.0", default-features = false, features = ["windows"] }
+futures-util = { version = "0.3.34", default-features = false }
+hmac = { version = "0.12.1", default-features = false }
+http = "1.5.0"
+inquire = { version = "0.9.4", default-features = false, features = ["crossterm"] }
+lettre = { version = "0.11.23", default-features = false }
+http-body = "1.0.1"
+http-body-util = "0.1.5"
+hyper = { version = "1.11.1", default-features = false }
+hyper-util = { version = "0.1.21", default-features = false }
+memcache = { version = "0.21.0", default-features = false }
+minijinja = { version = "2.24.0", default-features = false }
+moka = { version = "0.12.16", default-features = false }
+multer = { version = "3.1.0", default-features = false }
+notify = { version = "8.2.0", default-features = false }
+proc-macro2 = { version = "1.0.107", default-features = false, features = ["proc-macro"] }
+reqwest = { version = "0.13.5", default-features = false }
+redis = { version = "1.7.1", default-features = false }
+rustix = { version = "1.1.5", default-features = false, features = ["std", "process", "fs"] }
+rustls = { version = "0.23.45", default-features = false }
+rustls-platform-verifier = { version = "0.7.1", default-features = false }
+rcgen = { version = "0.14.10", default-features = false }
+quote = { version = "1.0.47", default-features = false, features = ["proc-macro"] }
+# Pinned exactly: models are SeaORM entities, so the macro output must match this runtime (CLAUDE.md, repo rules).
+sea-orm = { version = "=2.0.4", default-features = false }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+serde_path_to_error = "0.1.20"
+sha2 = { version = "0.10.9", default-features = false }
+# HMAC-SHA1 for Temper's TOTP codes (RFC 6238); 0.10 shares digest 0.10.7 with sha2 / hmac (D-477).
+sha1 = { version = "0.10.7", default-features = false }
+# QR codes for two-factor enrolment in Temper (Nayuki, MIT, no dependencies; D-477).
+qrcodegen = "1.8.0"
+subtle = { version = "2.6.1", default-features = false }
+serde_urlencoded = "0.7.1"
+syn = { version = "2.0.119", default-features = false, features = ["derive", "parsing", "printing", "proc-macro"] }
+tempfile = "3.27.0"
+thiserror = "2.0.21"
+tokio = { version = "1.53.2", default-features = false }
+tokio-rustls = { version = "0.26.6", default-features = false }
+tokio-util = { version = "0.7.19", default-features = false }
+# The WebSocket frame codec of Anvil (it answers the upgrade itself, D-401).
+tokio-tungstenite = { version = "0.30.0", default-features = false }
+tungstenite = { version = "0.30.0", default-features = false }
+tower = { version = "0.5.3", default-features = false }
+tower-http = { version = "0.7.1", default-features = false }
+tracing = { version = "0.1.44", default-features = false, features = ["std"] }
+tracing-subscriber = { version = "0.3.23", default-features = false }
+trybuild = "1.0.121"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+indexing_slicing = "warn"

@@ -1,0 +1,67 @@
+//! The settings pages: profile, password and two-factor authentication. Their forms post to Temper's routes
+//! (`PUT /user/profile-information`, `PUT /user/password`, `/user/two-factor-…`), which answer back here.
+
+use smeltery::alloy;
+use smeltery::auth::Auth;
+use smeltery::db::prelude::*;
+use smeltery::http::{HeaderValue, IntoResponse, header};
+use smeltery::session::Session;
+use smeltery::temper::two_factor;
+use smeltery::{Error, Response, Result};
+
+use crate::app::models::User;
+
+/// The two-factor state the page shows (the QR code and the key come from `/user/two-factor-qr-code` and
+/// `/user/two-factor-secret-key`, fetched by the page while enrolling, so they never sit in the page's props).
+#[derive(Debug, Serialize)]
+pub struct TwoFactorState {
+    /// A secret is stored (confirmed or not).
+    pub enabled: bool,
+    /// A first code confirmed the enrolment: logins ask for a code.
+    pub confirmed: bool,
+    /// Unused recovery codes.
+    pub recovery_codes_left: usize,
+}
+
+/// A page that nobody caches: it shows account data, and the two-factor page the new recovery codes.
+fn private(page: impl IntoResponse) -> Response {
+    let mut response = page.into_response();
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
+}
+
+/// `GET /settings/profile`, `resources/js/pages/{{ pages.settings_profile }}.{{ page_ext }}` (the user comes from
+/// the shared props).
+pub async fn profile() -> Response {
+    private(alloy::render("{{ pages.settings_profile }}"))
+}
+
+/// `GET /settings/password`, `resources/js/pages/{{ pages.settings_password }}.{{ page_ext }}`.
+pub async fn password() -> Response {
+    private(alloy::render("{{ pages.settings_password }}"))
+}
+
+/// `GET /settings/two-factor` (behind `password.confirm`), `resources/js/pages/{{ pages.settings_two_factor }}.{{ page_ext }}`.
+/// `recovery_codes` holds the codes just made, once (empty otherwise).
+pub async fn two_factor(auth: Auth, session: Session) -> Result<Response> {
+    let status = two_factor::status::<User>(&auth, &session)
+        .await?
+        .ok_or_else(Error::unauthorized)?;
+    Ok(private(
+        alloy::render("{{ pages.settings_two_factor }}")
+            .with(
+                "two_factor",
+                TwoFactorState {
+                    enabled: status.enabled,
+                    confirmed: status.confirmed,
+                    recovery_codes_left: status.recovery_codes_left,
+                },
+            )
+            .with(
+                "recovery_codes",
+                status.new_recovery_codes.unwrap_or_default(),
+            ),
+    ))
+}

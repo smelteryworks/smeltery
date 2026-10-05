@@ -1,0 +1,22 @@
+{% raw -%}
+<div class="panel mt-4 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+  <div>
+    <p class="text-sm text-stone-600 dark:text-stone-400">A Spark: <code class="font-mono text-xs">app/sparks/counter.rs</code> with <code class="font-mono text-xs">resources/views/sparks/counter.mold.html</code>. It updates without a page reload and without writing JavaScript.</p>
+    <p class="mt-3 font-mono text-5xl font-bold tabular-nums text-molten-700 dark:text-molten-500" aria-live="polite">{{ count }}</p>{% endraw %}
+{%- if alpine %}{% raw %}
+    <p class="mt-1 text-sm text-stone-600 dark:text-stone-400" x-data>Alpine.js reads it as <code class="font-mono text-xs">$spark.count</code>: <span x-text="$spark.count % 2 === 0 ? 'even' : 'odd'"></span></p>{% endraw %}
+{%- endif %}{% raw %}
+  </div>
+  <div class="flex flex-wrap items-end gap-3 sm:shrink-0">
+    <button type="button" wire:click="decrement" class="btn-secondary" aria-label="Subtract {{ step }}">-{{ step }}</button>
+    <button type="button" wire:click="increment" class="btn-primary" aria-label="Add {{ step }}">+{{ step }}</button>
+    <label class="text-sm text-stone-700 dark:text-stone-300">Step
+      <input type="number" wire:model.live="step" value="{{ step }}" class="form-input mt-1 w-24" @error("step") aria-invalid="true" aria-describedby="step-error" @enderror></label>
+    {{-- Hidden, not removed: it keeps its space, so showing it during a request moves nothing. --}}
+    <span wire:loading.class.remove="invisible" class="mono-label invisible whitespace-nowrap" role="status">Saving…</span>
+    @error("step")
+      <p id="step-error" class="form-error w-full">{{ message }}</p>
+    @enderror
+  </div>
+</div>
+{%- endraw %}

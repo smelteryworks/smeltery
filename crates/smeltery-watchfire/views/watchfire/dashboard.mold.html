@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+@if(live)
+<noscript><meta http-equiv="refresh" content="5"></noscript>
+@sparksScripts
+@else
+@unless(confirming)
+<meta http-equiv="refresh" content="5">
+@endunless
+@endif
+<title>Watchfire · {{ app_name }}</title>
+<link rel="stylesheet" href="/_watchfire/assets/watchfire.css?v={{ asset_version }}">
+</head>
+<body class="wf">
+<a class="wf-skip" href="#wf-main">Skip to content</a>
+<header class="wf-header">
+<div class="wf-bar">
+<div class="wf-brand">
+<svg class="wf-logo" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true" focusable="false"><defs><linearGradient id="wf-logo-molten" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd27a"/><stop offset=".5" stop-color="#ff4a1c"/><stop offset="1" stop-color="#a3260f"/></linearGradient></defs><path d="M16 4 28 10v12l-12 6-12-6V10z" fill="url(#wf-logo-molten)"/><path d="M16 4 28 10l-12 6-12-6z" fill="#ffd27a" opacity=".55"/></svg>
+<h1 class="wf-title">Watchfire</h1>
+</div>
+<p class="wf-meta"><span class="wf-app">{{ app_name }}</span><span class="wf-env" data-env="{{ env_kind }}" title="APP_ENV">{{ env }}</span>@if(live)<span class="wf-live">Live</span>@elseif(confirming)<span class="wf-live" data-off>Paused for a confirmation</span>@else<span class="wf-live" data-off>Refreshes every 5 s</span>@endif</p>
+</div>
+</header>
+<main id="wf-main" class="wf-main">
+@if(session("status"))
+<p class="wf-alert" role="status">{{ session("status") }}</p>
+@endif
+@unless(running)
+@if(elsewhere)
+<p class="wf-notice" role="note"><span class="wf-notice-mark" aria-hidden="true"></span><span>Watchfire does not run in this process: these are the agents of the processes that run them (<code>work</code>, or <code>serve</code> without <code>--no-agents</code>), from the shared tables; the buttons reach the process that holds each agent.</span></p>
+@else
+<p class="wf-notice" role="note"><span class="wf-notice-mark" aria-hidden="true"></span><span>Watchfire is not running in this process: agents run under <code>serve</code> and <code>work</code>.</span></p>
+@endif
+@endunless
+@if(live)
+@spark("watchfire.agents")
+@spark("watchfire.queue")
+@else
+@include("watchfire/agents")
+@include("watchfire/queue")
+@endif
+</main>
+<footer class="wf-footer">
+<p>Watchfire <span class="wf-mono">{{ version }}</span> · supervised agents, jobs and the schedule of <span>{{ app_name }}</span></p>
+</footer>
+</body>
+</html>

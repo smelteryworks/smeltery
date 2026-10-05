@@ -1,0 +1,17 @@
+//! Database settings.
+
+use smeltery::config::env;
+
+/// The database settings.
+#[derive(Debug, Clone)]
+pub struct DatabaseConfig {
+    /// Connection URL (`DATABASE_URL`).
+    pub url: String,
+}
+
+/// Reads the database settings.
+pub fn database() -> DatabaseConfig {
+    DatabaseConfig {
+        url: env("DATABASE_URL", "{{ database_url }}"),
+    }
+}

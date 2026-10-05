@@ -1,0 +1,15 @@
+# At most ANVIL_MAX_SUBSCRIPTIONS channels per socket (2 here).
+set max_subscriptions=2
+> {"event":"pusher:subscribe","data":{"channel":"news"}}
+= subscribe news
+< {"event":"pusher_internal:subscription_succeeded","channel":"news","data":{}}
+> {"event":"pusher:subscribe","data":{"channel":"scores.1"}}
+= subscribe scores.1
+< {"event":"pusher_internal:subscription_succeeded","channel":"scores.1","data":{}}
+> {"event":"pusher:subscribe","data":{"channel":"scores.2"}}
+< {"event":"pusher:subscription_error","channel":"scores.2","data":{"type":"AuthError","error":"too many subscriptions on this connection","status":429}}
+> {"event":"pusher:unsubscribe","data":{"channel":"news"}}
+= unsubscribe news
+> {"event":"pusher:subscribe","data":{"channel":"scores.2"}}
+= subscribe scores.2
+< {"event":"pusher_internal:subscription_succeeded","channel":"scores.2","data":{}}

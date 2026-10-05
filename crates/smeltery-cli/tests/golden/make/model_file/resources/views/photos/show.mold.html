@@ -1,0 +1,34 @@
+@extends("layouts/app")
+
+@section("title", "Photo")
+
+@section("content")
+  <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+    <h1 class="text-3xl font-bold tracking-tight">Photo {{ photo.id }}</h1>
+    <dl class="panel mt-8 grid gap-x-6 gap-y-3 sm:grid-cols-[10rem_1fr]">
+      <dt class="mono-label pt-0.5">Title</dt>
+      <dd>{{ photo.title }}</dd>
+      <dt class="mono-label pt-0.5">Image</dt>
+      <dd>
+        @if(photo.image)
+          <a href="/storage/{{ photo.image }}" class="link break-all">{{ photo.image }}</a>
+        @endif
+      </dd>
+      <dt class="mono-label pt-0.5">Scan</dt>
+      <dd>
+        @if(photo.scan)
+          <a href="/storage/{{ photo.scan }}" class="link break-all">{{ photo.scan }}</a>
+        @endif
+      </dd>
+    </dl>
+    <div class="mt-6 flex flex-wrap items-center gap-3">
+      <a href="/photos/{{ photo.id }}/edit" class="btn-primary">Edit</a>
+      <a href="/photos" class="btn-secondary">All photos</a>
+      <form method="POST" action="/photos/{{ photo.id }}" class="ml-auto">
+        @csrf
+        @method("DELETE")
+        <button type="submit" class="btn-secondary text-red-700 dark:text-red-300">Delete</button>
+      </form>
+    </div>
+  </main>
+@endsection

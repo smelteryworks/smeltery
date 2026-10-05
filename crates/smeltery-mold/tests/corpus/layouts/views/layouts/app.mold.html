@@ -1,0 +1,8 @@
+@extends("layouts/base")
+
+@section("body")
+<header>@include("partials/nav", { active: "home", user: user })</header>
+<main>
+@yield("content")
+</main>
+@endsection

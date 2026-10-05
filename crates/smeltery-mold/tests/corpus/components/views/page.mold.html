@@ -1,0 +1,6 @@
+<x-alert type="error" data-id="7" :count="items | len">
+  @slot("title")Oops & <b>bold</b> @endslot
+  Something <em>{{ message }}</em> happened.
+  <x-forms.input name="email" :value="email" />
+</x-alert>
+<x-alert type="info" data-id="8" :count="0">@slot("title")@endslot Plain</x-alert>

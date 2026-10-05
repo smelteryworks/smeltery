@@ -1,0 +1,42 @@
+//! The home page.
+
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use smeltery::alloy::{self, Page};
+use smeltery::db::prelude::ChronoUtc;
+
+/// How many readings the forge has served since the app started (counted in this process).
+static READINGS: AtomicU64 = AtomicU64::new(0);
+
+/// One answer of "Ask the forge" on the welcome page.
+#[derive(Debug, serde::Serialize)]
+pub struct ForgeReading {
+    /// The forge's temperature in °C.
+    pub temperature: u64,
+    /// The number of this reading since the app started.
+    pub reading: u64,
+    /// When the server took it (UTC, `HH:MM:SS`).
+    pub served_at: String,
+}
+
+impl ForgeReading {
+    /// A fresh reading.
+    pub fn now() -> Self {
+        let reading = READINGS.fetch_add(1, Ordering::Relaxed) + 1;
+        let now = ChronoUtc::now();
+        let seconds = u64::try_from(now.timestamp()).unwrap_or_default();
+        Self {
+            temperature: 1_150 + (seconds * 37 + reading * 101) % 350,
+            reading,
+            served_at: now.format("%H:%M:%S").to_string(),
+        }
+    }
+}
+
+/// The welcome page, `resources/js/pages/welcome.tsx`. `forge` is an optional prop: no visit
+/// computes it until a partial reload asks for it (`router.reload({ only: ['forge'] })`).
+pub async fn index() -> Page {
+    alloy::render("welcome")
+        .with("version", smeltery::VERSION)
+        .optional("forge", || async { Ok(ForgeReading::now()) })
+}

@@ -1,0 +1,21 @@
+# Private channels need the auth string the auth endpoint signed for this socket and channel.
+> {"event":"pusher:subscribe","data":{"channel":"private-orders.7","auth":"{auth:private-orders.7}"}}
+= subscribe private-orders.7
+< {"event":"pusher_internal:subscription_succeeded","channel":"private-orders.7","data":{}}
+> {"event":"pusher:subscribe","data":{"channel":"private-orders.8"}}
+< {"event":"pusher:subscription_error","channel":"private-orders.8","data":{"type":"AuthError","error":"authorization required","status":401}}
+# Signed for another socket.
+> {"event":"pusher:subscribe","data":{"channel":"private-orders.8","auth":"{auth-other-socket:private-orders.8}"}}
+< {"event":"pusher:subscription_error","channel":"private-orders.8","data":{"type":"AuthError","error":"invalid signature","status":401}}
+# Signed for another channel.
+> {"event":"pusher:subscribe","data":{"channel":"private-orders.8","auth":"{auth:private-orders.9}"}}
+< {"event":"pusher:subscription_error","channel":"private-orders.8","data":{"type":"AuthError","error":"invalid signature","status":401}}
+# Signed with another secret.
+> {"event":"pusher:subscribe","data":{"channel":"private-orders.8","auth":"{auth-other-secret:private-orders.8}"}}
+< {"event":"pusher:subscription_error","channel":"private-orders.8","data":{"type":"AuthError","error":"invalid signature","status":401}}
+# A plain `key:hex` signature without a grant.
+> {"event":"pusher:subscribe","data":{"channel":"private-orders.8","auth":"{auth-plain:private-orders.8}"}}
+< {"event":"pusher:subscription_error","channel":"private-orders.8","data":{"type":"AuthError","error":"invalid signature","status":401}}
+# A grant whose five minutes are over.
+> {"event":"pusher:subscribe","data":{"channel":"private-orders.8","auth":"{auth-expired:private-orders.8}"}}
+< {"event":"pusher:subscription_error","channel":"private-orders.8","data":{"type":"AuthError","error":"authorization expired","status":401}}

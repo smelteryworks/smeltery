@@ -1,0 +1,3 @@
+# The protocol is JSON text: a binary frame closes with 1003.
+binary
+x 1003

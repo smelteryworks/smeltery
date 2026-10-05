@@ -1,0 +1,17 @@
+//! The `{{ job }}` job.
+
+use serde::{Deserialize, Serialize};
+use smeltery::watchfire::prelude::*;
+
+/// A queued job: `{{ struct_name }} {}.dispatch(&app).await?` puts it on the queue, a worker runs `handle`.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct {{ struct_name }} {}
+
+impl Job for {{ struct_name }} {
+    const NAME: &'static str = "{{ job }}";
+
+    async fn handle(&self, ctx: JobCtx) -> Result<(), AgentError> {
+        ctx.log().info("handled");
+        Ok(())
+    }
+}
