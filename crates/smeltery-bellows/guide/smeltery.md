@@ -1,3 +1,24 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/smelteryworks/smeltery/main/smeltery-github-cover.png"
+       alt="Smeltery: batteries-included full-stack Rust" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://crates.io/crates/smeltery"><img alt="crates.io" src="https://img.shields.io/crates/v/smeltery.svg"></a>
+  <a href="https://docs.rs/smeltery"><img alt="docs.rs" src="https://img.shields.io/docsrs/smeltery"></a>
+  <a href="https://github.com/smelteryworks/smeltery/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/smelteryworks/smeltery/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="#licence"><img alt="License: MIT OR Apache-2.0" src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg"></a>
+  <a href="https://www.rust-lang.org"><img alt="Rust 1.94+" src="https://img.shields.io/badge/rust-1.94%2B-orange.svg"></a>
+  <a href="https://smeltery.org"><img alt="Website: smeltery.org" src="https://img.shields.io/badge/website-smeltery.org-e8590c.svg"></a>
+</p>
+
+<p align="center">
+  <a href="https://smeltery.org"><b>smeltery.org</b></a> ·
+  <a href="https://docs.rs/smeltery">Docs</a> ·
+  <a href="https://crates.io/crates/smeltery">crates.io</a> ·
+  <a href="https://github.com/smelteryworks/smeltery">GitHub</a>
+</p>
+
 # Smeltery
 
 Batteries-included full-stack Rust: routing, typed configuration from `.env`, an application container, middleware,
@@ -8,8 +29,6 @@ and memory stores), Watchfire for supervised long-running agents, queued jobs an
 commands, a test client, Bellows for coding agents, and the `smeltery` command-line tool with an app generator and
 `make:*` generators.
 Fully async on Tokio, Axum and SeaORM.
-
-Website: [smeltery.org](https://smeltery.org) · Source: [github.com/smelteryworks/smeltery](https://github.com/smelteryworks/smeltery)
 
 ```text
 cargo install smeltery
